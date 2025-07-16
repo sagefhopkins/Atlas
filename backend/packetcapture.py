@@ -44,7 +44,7 @@ class PacketCapture:
             if TCP in packet:
                     try:
                         flags = packet[TCP].flags
-                        if flags & 0x02 or flags & 0x10:
+                        if flags & 0x02 != 0 or flags & 0x10 != 0:
                             tcp_result: TCPResult = fingerprint_tcp(packet)
                             if tcp_result and tcp_result.os_name:
                                 data["os"] = tcp_result.os_name
