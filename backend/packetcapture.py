@@ -39,7 +39,7 @@ class PacketCapture:
 
             if TCP in packet:
                     try:
-                        os_result = fingerprint(packet)
+                        os_result = fingerprint.fingerprint(packet)
                         if os_result and os_result.os_name:
                             data["os"] = os_result.os_name
                             data["os_flavor"] = os_result.os_flavor
