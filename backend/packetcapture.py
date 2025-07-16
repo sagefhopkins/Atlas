@@ -1,4 +1,4 @@
-from scapy.all import sniff, ARP, IP, TCP, UDP
+from scapy.all import sniff, ARP, IP, TCP, UDP, Raw
 from scapy.layers.http import HTTPRequest, HTTPResponse
 from pyp0f.database import DATABASE
 from pyp0f.fingerprint import fingerprint_mtu, fingerprint_tcp, fingerprint_http
@@ -46,9 +46,9 @@ class PacketCapture:
                         flags = packet[TCP].flags
                         if flags & 0x02 != 0:
                             tcp_result: TCPResult = fingerprint_tcp(packet)
-                            if tcp_result and tcp_result.os_name:
-                                data["os"] = tcp_result.os_name
-                                data["os_flavor"] = tcp_result.os_flavor
+                            if tcp_result and tcp_result.label:
+                                data["os"] = tcp_result.label
+                                data["os_flavor"] = tcp_result.flavor
                     except Exception as e:
                         print(f"Error fingerprinting TCP packet: {e}")
                     self.db.store_device(data)
