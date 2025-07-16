@@ -43,10 +43,12 @@ class PacketCapture:
 
             if TCP in packet:
                     try:
-                        tcp_result: TCPResult = fingerprint_tcp(packet)
-                        if tcp_result and tcp_result.os_name:
-                            data["os"] = tcp_result.os_name
-                            data["os_flavor"] = tcp_result.os_flavor
+                        flags = packet[TCP].flags
+                        if flags & 0x02 or flags & 0x10:
+                            tcp_result: TCPResult = fingerprint_tcp(packet)
+                            if tcp_result and tcp_result.os_name:
+                                data["os"] = tcp_result.os_name
+                                data["os_flavor"] = tcp_result.os_flavor
                     except Exception as e:
                         print(f"Error fingerprinting TCP packet: {e}")
                     self.db.store_device(data)
