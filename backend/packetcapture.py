@@ -1,5 +1,8 @@
 from scapy.all import sniff, ARP, IP, TCP, UDP
-from pyp0f import fingerprint
+from scapy.layers.http import HTTPRequest, HTTPResponse
+from pyp0f.data import DATABASE
+from pyp0f.fingerprint import fingerprint_mtu, fingerprint_tcp, fingerprint_http
+from pyp0f.fingerprint_results import MTUResult, TCPResult, HTTPResult
 from multiprocessing import Process, Queue
 from backend.keydb import KeyDBClient
 import signal
@@ -11,6 +14,7 @@ class PacketCapture:
         self.queue = Queue()
         self.process = None
         self.db = KeyDBClient()
+        DATABASE.load()
 
     def capture_loop(self, queue, iface):
         def handle_packet(packet):
@@ -39,14 +43,25 @@ class PacketCapture:
 
             if TCP in packet:
                     try:
-                        os_result = fingerprint.fingerprint(packet)
-                        if os_result and os_result.os_name:
-                            data["os"] = os_result.os_name
-                            data["os_flavor"] = os_result.os_flavor
+                        tcp_result: TCPResult = fingerprint_tcp(packet)
+                        if tcp_result and tcp_result.os_name:
+                            data["os"] = tcp_result.os_name
+                            data["os_flavor"] = tcp_result.os_flavor
                     except Exception as e:
-                        print(f"Error fingerprinting packet: {e}")
-
+                        print(f"Error fingerprinting TCP packet: {e}")
                     self.db.store_device(data)
+
+            if packet.haslayer(HTTPResponse):
+                try:
+                    payload = bytes(packet[Raw].load)
+                    http_result: HTTPResult = fingerprint_http(payload)
+                    if http_result and http_result.app_name:
+                        data["http_app"] = http_result.app_name
+                        data["http_version"] = http_result.version
+                except Exception as e:
+                    print(f"Error fingerprinting HTTP packet: {e}")
+                self.db.store_device(data)
+                self.db.store_connection(packet[IP].src, packet[IP].dst)
 
             if data:
                 queue.put(data)
