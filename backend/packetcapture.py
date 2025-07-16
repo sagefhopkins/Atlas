@@ -1,4 +1,5 @@
 from scapy.all import sniff, ARP, IP, TCP, UDP
+from pyp0f import fingerprint
 from multiprocessing import Process, Queue
 from backend.keydb import KeyDBClient
 import signal
@@ -33,10 +34,20 @@ class PacketCapture:
                     "dst_ip": packet[IP].dst,
                     "protocol": packet[IP].proto
                 }
-
                 self.db.store_device(data)
                 self.db.store_connection(packet[IP].src, packet[IP].dst)
-            
+
+            if TCP in packet:
+                    try:
+                        os_result = fingerprint(packet)
+                        if os_result and os_result.os_name:
+                            data["os"] = os_result.os_name
+                            data["os_flavor"] = os_result.os_flavor
+                    except Exception as e:
+                        print(f"Error fingerprinting packet: {e}")
+
+                    self.db.store_device(data)
+
             if data:
                 queue.put(data)
 
