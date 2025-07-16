@@ -1,0 +1,33 @@
+services:
+  atlas:
+    build:
+      context: ..
+      dockerfile: setup/Dockerfile
+    container_name: atlas
+    #network_mode: host
+    privileged: true
+    cap_add:
+      - NET_ADMIN
+      - NET_RAW
+    ports:
+      - "8000:8000"
+    restart: unless-stopped
+    volumes:
+      - ../backend:/app/backend
+      - ../frontend:/app/frontend
+      - ../setup:/app/setup
+    environment:
+      - PYTHONUNBUFFERED=1
+      - KEYDB_HOST=localhost
+
+  keydb:
+    image: eqalpha/keydb:latest
+    container_name: keydb
+    ports:
+      - "6379:6379"
+    volumes:
+      - keydb_data:/data
+    restart: unless-stopped
+
+volumes:
+  keydb_data:
