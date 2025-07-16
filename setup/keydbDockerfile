@@ -1,0 +1,30 @@
+ARG KEY_DB_VERSION=v6.2.2
+ARG REDISJSON_VERSION=v1.0.4
+ARG BUILD_BIN=/build/bin
+FROM debian:bookworm-slim as builder
+ARG BUILD_BIN
+ARG REDISJSON_VERSION
+
+ENV REDISJSON_VERSION=${REDISJSON_VERSION}
+ENV BUILD_BIN=${BUILD_BIN}
+
+WORKDIR /build
+RUN mkdir -p ${BUILD_BIN}
+
+RUN apt-get update && \
+	apt-get install -y curl
+
+RUN mkdir -p redisjson && \
+    cd redisjson && \
+    curl -L https://github.com/RedisJSON/RedisJSON/releases/download/${REDISJSON_VERSION}/rejson.so -o rejson.so && \
+    chmod a+x rejson.so && \
+    cp rejson.so ${BUILD_BIN}/ && \
+    ls -ltr ${BUILD_BIN}
+
+FROM eqalpha/keydb:latest
+ARG BUILD_BIN
+ENV LIBDIR /usr/lib/redis/modules
+RUN mkdir -p ${LIBDIR}
+COPY --from=builder ${BUILD_BIN}/* ${LIBDIR}/
+
+CMD ["keydb-server", "--loadmodule", "/usr/lib/redis/modules/rejson.so"]

@@ -8,25 +8,35 @@ class KeyDBClient:
         self.redis = redis.Redis(host=host, port=port, decode_responses=True)
         self.json = self.redis.json()
 
+    def _safe_json_set(self, key, path, obj):
+        try:
+            self.json.set(key, path, obj)
+        except redis.exceptions.ResponseError as e:
+            if "WRONGTYPE" in str(e):
+                self.redis.delete(key)
+                self.json.set(key, path, obj)
+            else:
+                raise
+
     def store_device(self, device):
         if not device.get("src_ip") or not device.get("src_mac"):
             return
         
         record = {
-            "ip": device.get("src_ip"),
-            "mac": device.get("src_mac"),
+            "ip": device["src_ip"],
+            "mac": device["src_mac"],
             "last_seen": time.time(),
             "metadata": device
         }
 
-        self.json.set(f"device:{device.get('src_ip')}", record)
+        self._safe_json_set(f"device:{device['src_ip']}", ".", record)
 
     def store_connection(self, src_ip, dst_ip):
-        self.redis.set(f"link:{src_ip}->{dst_ip}", time.time())
+        self._safe_json_set(f"link:{src_ip}->{dst_ip}", ".", {"timestamp": time.time()})
 
     def get_all_devices(self):
         return [self.json.get(k) for k in self.redis.keys("device:*")]
-    
+
     def get_device(self, ip):
         return self.json.get(f"device:{ip}")
     

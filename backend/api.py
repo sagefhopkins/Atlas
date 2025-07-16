@@ -1,10 +1,13 @@
 from fastapi import FastAPI, WebSocket, WebSocketDisconnect
 from fastapi.middleware.cors import CORSMiddleware
-from keydb import KeyDBClient
+from backend.keydb import KeyDBClient
+from backend.packetcapture import PacketCapture
 import asyncio
 
 app = FastAPI()
 db = KeyDBClient()
+packet_capture = PacketCapture(iface="eno2")
+packet_capture.start()
 
 app.add_middleware(
     CORSMiddleware,
