@@ -2,7 +2,7 @@ from scapy.all import sniff, ARP, IP, TCP, UDP
 from scapy.layers.http import HTTPRequest, HTTPResponse
 from pyp0f.database import DATABASE
 from pyp0f.fingerprint import fingerprint_mtu, fingerprint_tcp, fingerprint_http
-from pyp0f.fingerprint_results import MTUResult, TCPResult, HTTPResult
+from pyp0f.fingerprint.results import MTUResult, TCPResult, HTTPResult
 from multiprocessing import Process, Queue
 from backend.keydb import KeyDBClient
 import signal
