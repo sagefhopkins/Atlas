@@ -12,7 +12,16 @@ RUN apk update && apk add --no-cache \
     bash \
     iproute2 \
     iputils \
-    && pip install --no-cache-dir scapy fastapi uvicorn redis
+    git \
+    curl
+
+    RUN git clone https://github.com/p0f/p0f.git /opt/p0f && \
+    cd /opt/p0f && \
+    make
+
+    RUN cp /opt/p0f/p0f /usr/bin/p0f
+
+    RUN pip install --no-cache-dir scapy fastapi uvicorn redis pyp0f
 
     WORKDIR /app
     COPY backend /app/backend
