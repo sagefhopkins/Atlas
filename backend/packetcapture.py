@@ -48,7 +48,7 @@ class PacketCapture:
                             tcp_result: TCPResult = fingerprint_tcp(packet)
                             if tcp_result.match != None:
                                 print(f"TCP Result: {tcp_result.match}")
-                                record = tcp_result.record
+                                record = tcp_result.match.record
                                 data["os"] = record.label.name
                                 data["os_flavor"] = record.label.flavor
                                 data["os_class"] = record.label.os_class
