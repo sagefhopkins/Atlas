@@ -36,15 +36,21 @@ class DeviceRecord:
             connections=connections
         )
 class ConnectionRecord:
-    def __init__(self, src_ip, dst_ip, timestamp=None):
+    def __init__(self, src_ip, dst_ip, src_port=None, dst_port=None, protocol=None):
         self.src_ip = src_ip
         self.dst_ip = dst_ip
+        self.src_port = src_port
+        self.dst_port = dst_port
+        self.protocol = protocol
         self.timestamp = time.time()
         
     def to_dict(self):
         return {
             "src_ip": self.src_ip,
             "dst_ip": self.dst_ip,
+            "src_port": self.src_port,
+            "dst_port": self.dst_port,
+            "protocol": self.protocol,
             "timestamp": self.timestamp
         }
     @staticmethod
@@ -52,6 +58,9 @@ class ConnectionRecord:
         return ConnectionRecord(
             src_ip=data.get("src_ip"),
             dst_ip=data.get("dst_ip"),
+            src_port=data.get("src_port"),
+            dst_port=data.get("dst_port"),
+            protocol=data.get("protocol"),
             timestamp=data.get("timestamp")
         )
 
