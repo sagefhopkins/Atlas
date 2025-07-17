@@ -21,15 +21,21 @@ class KeyDBClient:
     def store_device(self, device):
         if not device.get("src_ip") or not device.get("src_mac"):
             return
-        
-        record = {
-            "ip": device["src_ip"],
-            "mac": device["src_mac"],
-            "last_seen": time.time(),
-            "metadata": device
-        }
+        key = f"device:{device['src_ip']}"
+        existing = self.get_device(device["src_ip"])
+        metadata = device.get("metadata", {}) if existing else {}
 
-        self._safe_json_set(f"device:{device['src_ip']}", ".", record)
+        for k, v in device.items():
+            if k not in ("src_ip", "src_mac"):
+                metadata[k] = v
+
+        record = {
+            "src_ip": device["src_ip"],
+            "src_mac": device["src_mac"],
+            "last_seen": time.time(),
+            "metadata": metadata,
+        }
+        self._safe_json_set(key, ".", record)
 
     def store_connection(self, src_ip, dst_ip):
         self._safe_json_set(f"link:{src_ip}->{dst_ip}", ".", {"timestamp": time.time()})
