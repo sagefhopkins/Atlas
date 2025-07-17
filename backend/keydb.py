@@ -8,7 +8,7 @@ class DeviceRecord:
         self.mac = mac or "00:00:00:00:00:00"
         self.last_seen = time.time()
         self.metadata = metadata or {}
-        self.connections = []
+        self.connections = connections or []
 
     def update_metadata(self, new_metadata):
         self.metadata.update(new_metadata)
