@@ -25,6 +25,13 @@ class PacketCapture:
         self.db = KeyDBClient()
         DATABASE.load()
 
+    def extract_ports(self, packet):
+        if TCP in packet:
+            return packet[TCP].sport, packet[TCP].dport
+        elif UDP in packet:
+            return packet[UDP].sport, packet[UDP].dport
+        return None, None
+    
     def process_arp_packet(self, packet):
         src_ip = packet[ARP].psrc
         dst_ip = packet[ARP].pdst
@@ -74,13 +81,6 @@ class PacketCapture:
         elif is_local_ip(dst_ip):
             self.db.store_connection(dst_ip, src_ip)
 
-    def extract_ports(self, packet):
-        if TCP in packet:
-            return packet[TCP].sport, packet[TCP].dport
-        elif UDP in packet:
-            return packet[UDP].sport, packet[UDP].dport
-        return None, None
-    
     def enrich_with_os_fingerprint(self, packet):
         try:
             if packet[TCP].flags & 0x02:
@@ -156,7 +156,7 @@ class PacketCapture:
 
             if packet.haslayer(HTTPResponse) and Raw in packet:
                 self.enrich_with_http_fingerprint(packet)
-                
+
         sniff(iface=iface, prn=handle_packet, store=False)
 
     def start(self):
