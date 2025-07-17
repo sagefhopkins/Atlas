@@ -1,7 +1,10 @@
 FROM node:18-alpine
 WORKDIR /app
-COPY package*.json ./
+COPY frontend/atlas/package*.json ./frontend/atlas/
+
+WORKDIR /app/frontend/atlas
 RUN npm install
-COPY . .
+
+COPY frontend/atlas/ ./frontend/atlas/
 
 CMD ["npm", "start"]
