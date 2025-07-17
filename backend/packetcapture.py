@@ -91,6 +91,8 @@ class PacketCapture:
                 self.db.store_device(record.to_dict())
                 queue.put(record.to_dict())
 
+        sniff(iface=iface, prn=handle_packet, store=False)
+
     def start(self):
         self.process = Process(target=self.capture_loop, args=(self.queue, self.iface))
         self.process.start()
