@@ -25,37 +25,37 @@ class PacketCapture:
 
     def capture_loop(self, queue, iface):
         def handle_packet(packet):
-            ip = None
+            src_ip = None
+            dst_ip = None
             mac = None
             metadata = {}
 
             if ARP in packet and packet[ARP].op in (1, 2):
-                ip = packet[ARP].psrc
+                src_ip = packet[ARP].psrc
+                dst_ip = packet[ARP].pdst
                 mac = packet[ARP].hwsrc
-                metadata = {
+                metadata.update({
                     "type": "ARP",
-                    "src_ip": packet[ARP].psrc,
-                    "src_mac": packet[ARP].hwsrc,
-                    "dst_ip": packet[ARP].pdst,
+                    "src_ip": src_ip,
+                    "src_mac": mac,
+                    "dst_ip": dst_ip,
                     "dst_mac": packet[ARP].hwdst
-                }
+                })
 
             elif IP in packet:
                 src_ip = packet[IP].src
                 dst_ip = packet[IP].dst
                 mac = getattr(packet, "src", "00:00:00:00:00:00")
-
-                metadata = {
+                metadata.update({
                     "type": "IP",
                     "src_ip": src_ip,
                     "dst_ip": dst_ip,
                     "protocol": packet[IP].proto
-                }
+                })
 
-            if TCP in packet:
+            if TCP in packet and IP in packet:
                 try:
-                    flags = packet[TCP].flags
-                    if flags & 0x02:  # SYN or SYN+ACK
+                    if packet[TCP].flags & 0x02:  # SYN/SYN-ACK
                         tcp_result: TCPResult = fingerprint_tcp(packet)
                         if tcp_result.match:
                             os_info = tcp_result.match.record.label
@@ -64,11 +64,11 @@ class PacketCapture:
                                 "os_flavor": os_info.flavor,
                                 "os_class": os_info.os_class
                             })
-                            print(f"OS Match: src_ip={ip}, os={os_info.name}")
+                            print(f"OS Match: src_ip={src_ip}, os={os_info.name}")
                 except Exception as e:
                     print(f"Error fingerprinting TCP packet: {e}")
 
-            if packet.haslayer(HTTPResponse):
+            if packet.haslayer(HTTPResponse) and Raw in packet:
                 try:
                     payload = bytes(packet[Raw].load)
                     http_result: HTTPResult = fingerprint_http(payload)
@@ -78,24 +78,25 @@ class PacketCapture:
                 except Exception as e:
                     print(f"Error fingerprinting HTTP packet: {e}")
 
-                if is_local_ip(src_ip):
-                    ip = src_ip
-                    existing = self.db.get_device(ip)
-                    if existing:
-                        record = DeviceRecord(
-                            ip=existing["ip"],
-                            mac=existing["mac"],
-                            metadata=existing.get("metadata", {})
-                        )
-                        record.update_metadata(metadata)
-                    else:
-                        record = DeviceRecord(ip=ip, mac=mac, metadata=metadata)
+            if src_ip and is_local_ip(src_ip):
+                existing = self.db.get_device(src_ip)
+                if existing:
+                    record = DeviceRecord(
+                        ip=existing["ip"],
+                        mac=existing["mac"],
+                        metadata=existing.get("metadata", {})
+                    )
+                    record.update_metadata(metadata)
+                else:
+                    record = DeviceRecord(ip=src_ip, mac=mac, metadata=metadata)
 
+                if dst_ip:
                     record.connections.append(ConnectionRecord(src_ip=src_ip, dst_ip=dst_ip))
 
-                    self.db.store_device(record.to_dict())
-                    queue.put(record.to_dict())
+                self.db.store_device(record.to_dict())
+                queue.put(record.to_dict())
 
+            if src_ip and dst_ip:
                 if is_local_ip(src_ip):
                     self.db.store_connection(src_ip, dst_ip)
                 elif is_local_ip(dst_ip):
