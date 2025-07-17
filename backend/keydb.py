@@ -107,7 +107,7 @@ class KeyDBClient:
 
         self._safe_json_set(key, ".", record.to_dict())
 
-    def store_connection(self, src_ip, dst_ip):
+    def store_connection(self, src_ip, dst_ip, src_port=None, dst_port=None, protocol=None):
         link_key = f"link:{src_ip}:{dst_ip}"
         self._safe_json_set(link_key, ".", ConnectionRecord(src_ip, dst_ip).to_dict())
 

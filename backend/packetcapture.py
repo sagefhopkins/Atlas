@@ -28,10 +28,10 @@ class PacketCapture:
     def extract_ports(self, packet):
         if TCP in packet:
             print(f"TCP ports: {packet[TCP].sport}, {packet[TCP].dport}")
-            return packet[TCP].sport, packet[TCP].dport
+            return packet[TCP].sport, packet[TCP].dport, "TCP"
         elif UDP in packet:
             print(f"UDP ports: {packet[UDP].sport}, {packet[UDP].dport}")
-            return packet[UDP].sport, packet[UDP].dport
+            return packet[UDP].sport, packet[UDP].dport, "UDP"
         return None, None
     
     def process_arp_packet(self, packet):
@@ -50,7 +50,7 @@ class PacketCapture:
         mac = getattr(packet, "src", "00:00:00:00:00:00")
         protocol = packet[IP].proto
 
-        src_port, dst_port = self.extract_ports(packet)
+        src_port, dst_port, protocol = self.extract_ports(packet)
 
         metadata = {"type": "IP"}
 
@@ -79,9 +79,9 @@ class PacketCapture:
             self.queue.put(record.to_dict())
 
         if is_local_ip(src_ip):
-            self.db.store_connection(src_ip, dst_ip)
+            self.db.store_connection(src_ip, dst_ip, src_port, dst_port, protocol)
         elif is_local_ip(dst_ip):
-            self.db.store_connection(dst_ip, src_ip)
+            self.db.store_connection(dst_ip, src_ip, src_port, dst_port, protocol)
 
     def enrich_with_os_fingerprint(self, packet):
         try:
