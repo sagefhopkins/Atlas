@@ -4,7 +4,7 @@ from pyp0f.database import DATABASE
 from pyp0f.fingerprint import fingerprint_mtu, fingerprint_tcp, fingerprint_http
 from pyp0f.fingerprint.results import MTUResult, TCPResult, HTTPResult
 from multiprocessing import Process, Queue
-from backend.keydb import KeyDBClient
+from backend.keydb import KeyDBClient, DeviceRecord, ConnectionRecord
 import signal
 import time
 
@@ -18,10 +18,14 @@ class PacketCapture:
 
     def capture_loop(self, queue, iface):
         def handle_packet(packet):
-            data = {}
+            ip = None
+            mac = None
+            metadata = {}
 
-            if ARP in packet and packet[ARP].op in (1,2):
-                data = {
+            if ARP in packet and packet[ARP].op in (1, 2):
+                ip = packet[ARP].psrc
+                mac = packet[ARP].hwsrc
+                metadata = {
                     "type": "ARP",
                     "src_ip": packet[ARP].psrc,
                     "src_mac": packet[ARP].hwsrc,
@@ -29,56 +33,30 @@ class PacketCapture:
                     "dst_mac": packet[ARP].hwdst
                 }
 
-                self.db.store_device(data)
-            
             elif IP in packet:
-                data = {
+                ip = packet[IP].src
+                # Note: You may want to track MAC from Ethernet layer if needed
+                metadata = {
                     "type": "IP",
                     "src_ip": packet[IP].src,
                     "dst_ip": packet[IP].dst,
                     "protocol": packet[IP].proto
                 }
-                self.db.store_device(data)
                 self.db.store_connection(packet[IP].src, packet[IP].dst)
 
             if TCP in packet:
                 try:
                     flags = packet[TCP].flags
-                    if flags & 0x02 != 0:  # SYN or SYN+ACK
+                    if flags & 0x02:  # SYN or SYN+ACK
                         tcp_result: TCPResult = fingerprint_tcp(packet)
-                        if tcp_result.match is not None:
-                            print(f"OS Match: src_ip={data['src_ip']}, os={tcp_result.match.record.label.name}")
-
-                            os_metadata = {
-                                "os": tcp_result.match.record.label.name,
-                                "os_flavor": tcp_result.match.record.label.flavor,
-                                "os_class": tcp_result.match.record.label.os_class
-                            }
-
-                            existing_record = self.db.get_device(data["src_ip"])
-                            if existing_record:
-                                metadata = existing_record.get("metadata", {})
-                                metadata.update(os_metadata)
-
-                                updated_record = {
-                                    "ip": existing_record["ip"],
-                                    "mac": existing_record["mac"],
-                                    "last_seen": time.time(),
-                                    "metadata": metadata
-                                }
-                                self.db.store_device(updated_record)
-
-                            else:
-                                record = {
-                                    "ip": data["src_ip"],
-                                    "mac": data.get("src_mac", "00:00:00:00:00:00"),
-                                    "last_seen": time.time(),
-                                    "metadata": {
-                                        **data,
-                                        **os_metadata
-                                    }
-                                }
-                                self.db.store_device(record)
+                        if tcp_result.match:
+                            os_info = tcp_result.match.record.label
+                            metadata.update({
+                                "os": os_info.name,
+                                "os_flavor": os_info.flavor,
+                                "os_class": os_info.os_class
+                            })
+                            print(f"OS Match: src_ip={ip}, os={os_info.name}")
                 except Exception as e:
                     print(f"Error fingerprinting TCP packet: {e}")
 
@@ -87,17 +65,31 @@ class PacketCapture:
                     payload = bytes(packet[Raw].load)
                     http_result: HTTPResult = fingerprint_http(payload)
                     if http_result and http_result.app_name:
-                        data["http_app"] = http_result.app_name
-                        data["http_version"] = http_result.version
+                        metadata["http_app"] = http_result.app_name
+                        metadata["http_version"] = http_result.version
                 except Exception as e:
                     print(f"Error fingerprinting HTTP packet: {e}")
-                self.db.store_device(data)
-                self.db.store_connection(packet[IP].src, packet[IP].dst)
+                if IP in packet:
+                    self.db.store_connection(packet[IP].src, packet[IP].dst)
 
-            if data:
-                queue.put(data)
+            if ip:
+                existing = self.db.get_device(ip)
+                if existing:
+                    record = DeviceRecord(
+                        ip=existing["ip"],
+                        mac=existing["mac"],
+                        metadata=existing.get("metadata", {})
+                    )
+                    record.update_metadata(metadata)
+                else:
+                    record = DeviceRecord(
+                        ip=ip,
+                        mac=mac,
+                        metadata=metadata
+                    )
 
-        sniff(iface=iface, prn=handle_packet, store=False)
+                self.db.store_device(record.to_dict())
+                queue.put(record.to_dict())
 
     def start(self):
         self.process = Process(target=self.capture_loop, args=(self.queue, self.iface))
