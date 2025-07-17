@@ -42,34 +42,46 @@ class PacketCapture:
                 self.db.store_connection(packet[IP].src, packet[IP].dst)
 
             if TCP in packet:
-                    try:
-                        flags = packet[TCP].flags
-                        if flags & 0x02 != 0:
-                            tcp_result: TCPResult = fingerprint_tcp(packet)
-                            if tcp_result.match != None:
-                                print(f"OS Match: src_ip={data['src_ip']}, os={tcp_result.match.record.label.name}")
-                                existing_record = self.db.get_device(data["src_ip"])
-                                if existing_record:
-                                    metadata = existing_record.get("metadata", {})
-                                    metadata.update({
-                                        "os": tcp_result.match.record.label.name,
-                                        "os_flavor": tcp_result.match.record.label.flavor,
-                                        "os_class": tcp_result.match.record.label.os_class
-                                    })
-                                    existing_record["metadata"] = metadata
-                                    existing_record["last_seen"] = time.time()
-                                    self.db.store_device(existing_record)
-                                else:
-                                    data["metadata"] = {
-                                        "os": tcp_result.match.record.label.name,
-                                        "os_flavor": tcp_result.match.record.label.flavor,
-                                        "os_class": tcp_result.match.record.label.os_class
+                try:
+                    flags = packet[TCP].flags
+                    if flags & 0x02 != 0:  # SYN or SYN+ACK
+                        tcp_result: TCPResult = fingerprint_tcp(packet)
+                        if tcp_result.match is not None:
+                            print(f"OS Match: src_ip={data['src_ip']}, os={tcp_result.match.record.label.name}")
+
+                            # Extract OS info
+                            os_metadata = {
+                                "os": tcp_result.match.record.label.name,
+                                "os_flavor": tcp_result.match.record.label.flavor,
+                                "os_class": tcp_result.match.record.label.os_class
+                            }
+
+                            existing_record = self.db.get_device(data["src_ip"])
+                            if existing_record:
+                                metadata = existing_record.get("metadata", {})
+                                metadata.update(os_metadata)
+
+                                updated_record = {
+                                    "ip": existing_record["ip"],
+                                    "mac": existing_record["mac"],
+                                    "last_seen": time.time(),
+                                    "metadata": metadata
+                                }
+                                self.db.store_device(updated_record)
+
+                            else:
+                                record = {
+                                    "ip": data["src_ip"],
+                                    "mac": data.get("src_mac", "00:00:00:00:00:00"),
+                                    "last_seen": time.time(),
+                                    "metadata": {
+                                        **data,
+                                        **os_metadata
                                     }
-                                    data["last_seen"] = time.time()
-                                    self.db.store_device(data)
-                    except Exception as e:
-                        print(f"Error fingerprinting TCP packet: {e}")
-                    self.db.store_device(data)
+                                }
+                                self.db.store_device(record)
+                except Exception as e:
+                    print(f"Error fingerprinting TCP packet: {e}")
 
             if packet.haslayer(HTTPResponse):
                 try:
