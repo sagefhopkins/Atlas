@@ -115,7 +115,7 @@ class KeyDBClient:
         device_data = self.get_device(src_ip)
         if device_data:
             device_data.setdefault("connections", [])
-            connection = ConnectionRecord(src_ip, dst_ip).to_dict()
+            connection = ConnectionRecord(src_ip, dst_ip, src_port, dst_port, protocol).to_dict()
 
             if connection not in device_data["connections"]:
                 device_data["connections"].append(connection)
