@@ -32,7 +32,7 @@ class PacketCapture:
         elif UDP in packet:
             print(f"UDP ports: {packet[UDP].sport}, {packet[UDP].dport}")
             return packet[UDP].sport, packet[UDP].dport, "UDP"
-        return None, None
+        return None, None, None
     
     def process_arp_packet(self, packet):
         src_ip = packet[ARP].psrc
