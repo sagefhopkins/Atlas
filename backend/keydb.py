@@ -106,6 +106,7 @@ class KeyDBClient:
             )
 
         self._safe_json_set(key, ".", record.to_dict())
+        self.redis.expire(key, 600)
 
     def store_connection(self, src_ip, dst_ip, src_port=None, dst_port=None, protocol=None):
         link_key = f"link:{src_ip}:{dst_ip}"
@@ -120,6 +121,7 @@ class KeyDBClient:
             if connection not in device_data["connections"]:
                 device_data["connections"].append(connection)
                 self._safe_json_set(device_key, ".", device_data)
+                self.redis.expire(device_key, 600)
 
     def get_all_devices(self):
         return [self.json.get(k) for k in self.redis.keys("device:*")]
