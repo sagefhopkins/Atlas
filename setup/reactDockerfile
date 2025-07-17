@@ -2,7 +2,7 @@ FROM node:18-alpine
 WORKDIR /app
 COPY frontend/package*.json ./frontend/atlas/
 
-WORKDIR /frontend/atlas
+WORKDIR /frontend
 RUN npm install
 
 COPY frontend/atlas/ ./frontend/atlas/
