@@ -146,6 +146,46 @@ class PacketCapture:
         except Exception as e:
             print(f"Error fingerprinting HTTP packet: {e}")
 
+    def process_undefined_packet(self, packet, protocol="OTHER"):
+        try:
+            if IP in packet:
+                src_ip = packet[IP].src
+                dst_ip = packet[IP].dst
+                mac = getattr(packet, "src", "00:00:00:00:00:00")
+
+                metadata = {"type": "GENERIC", "protocol": protocol}
+
+                if is_local_ip(src_ip):
+                    existing = self.db.get_device(src_ip)
+                    if existing:
+                        record = DeviceRecord(
+                            ip=existing["ip"],
+                            mac=existing["mac"],
+                            metadata=existing.get("metadata", {}),
+                            connections=[ConnectionRecord(**conn) for conn in existing.get("connections", [])]
+                        )
+                        record.update_metadata(metadata)
+                    else:
+                        record = DeviceRecord(ip=src_ip, mac=mac, metadata=metadata)
+
+                    record.connections.append(ConnectionRecord(
+                        src_ip=src_ip,
+                        dst_ip=dst_ip,
+                        src_port=None,
+                        dst_port=None,
+                        protocol=protocol
+                    ))
+
+                    self.db.store_device(record.to_dict())
+                    self.queue.put(record.to_dict())
+
+                if is_local_ip(src_ip):
+                    self.db.store_connection(src_ip, dst_ip, None, None, protocol)
+                elif is_local_ip(dst_ip):
+                    self.db.store_connection(dst_ip, src_ip, None, None, protocol)
+        except Exception as e:
+            print(f"Error processing undefined packet: {e}")
+
     def capture_loop(self, queue, iface):
         def handle_packet(packet):
             if ARP in packet and packet[ARP].op in (1, 2):
