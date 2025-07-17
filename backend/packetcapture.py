@@ -71,15 +71,13 @@ class PacketCapture:
                     else:
                         record = DeviceRecord(ip=src_ip, mac=mac, metadata=metadata)
 
-                    record.connections.append(
-                        ConnectionRecord(
-                            src_ip=src_ip,
-                            dst_ip=dst_ip,
-                            src_port=src_port,
-                            dst_port=dst_port,
-                            protocol=protocol
-                        )
-                    )
+                    record.connections.append(ConnectionRecord(
+                        src_ip=src_ip,
+                        dst_ip=dst_ip,
+                        src_port=packet[TCP].sport if TCP in packet else packet[UDP].sport if UDP in packet else None,
+                        dst_port=packet[TCP].dport if TCP in packet else packet[UDP].dport if UDP in packet else None,
+                        protocol=packet[IP].proto if IP in packet else None
+                    ))
 
                     self.db.store_device(record.to_dict())
                     queue.put(record.to_dict())
