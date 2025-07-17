@@ -2,10 +2,8 @@ FROM node:slim
 
 WORKDIR /app
 
-COPY frontend/atlas/package*.json ./
+COPY frontend/atlas/ ./
 
 RUN npm install
-
-COPY frontend/atlas/ ./
 
 CMD ["npm", "start"]
