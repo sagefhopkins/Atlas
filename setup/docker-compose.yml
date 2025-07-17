@@ -22,7 +22,7 @@ services:
       dockerfile: setup/reactDockerfile
     container_name: react_atlas
     volumes:
-      - ../frontend/atlas:/app
+      - ../frontend/atlas:/app/atlas
     network_mode: host
     restart: unless-stopped
     environment:
