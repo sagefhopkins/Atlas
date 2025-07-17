@@ -49,7 +49,6 @@ class PacketCapture:
                         if tcp_result.match is not None:
                             print(f"OS Match: src_ip={data['src_ip']}, os={tcp_result.match.record.label.name}")
 
-                            # Extract OS info
                             os_metadata = {
                                 "os": tcp_result.match.record.label.name,
                                 "os_flavor": tcp_result.match.record.label.flavor,
