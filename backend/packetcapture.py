@@ -183,6 +183,9 @@ class PacketCapture:
                     self.db.store_connection(src_ip, dst_ip, None, None, protocol)
                 elif is_local_ip(dst_ip):
                     self.db.store_connection(dst_ip, src_ip, None, None, protocol)
+        except ValueError as e:
+            if "Not an HTTP payload" not in str(e):
+                print(f"ValueError processing undefined packet: {e}")
         except Exception as e:
             print(f"Error processing undefined packet: {e}")
 
@@ -200,7 +203,6 @@ class PacketCapture:
                 if packet.haslayer(HTTPResponse) and Raw in packet:
                     self.enrich_with_http_fingerprint(packet)
 
-                # Future protocol-specific logic
                 if packet.haslayer("ICMP"):
                     self.process_undefined_packet(packet, "ICMP")
 
