@@ -21,10 +21,8 @@ services:
       context: ..
       dockerfile: setup/reactDockerfile
     container_name: react_atlas
-    working_dir: /app
     volumes:
       - ../frontend/atlas:/app
-      - /app/node_modules
     network_mode: host
     restart: unless-stopped
     environment:
