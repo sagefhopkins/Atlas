@@ -4,6 +4,7 @@ WORKDIR /app
 COPY frontend/atlas/package*.json ./
 
 RUN npm install
+RUN npm install react-scripts@5.0.1 -g --silent
 
 COPY frontend/atlas/ ./atlas
 
