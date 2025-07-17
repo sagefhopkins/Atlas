@@ -12,12 +12,22 @@ services:
     restart: unless-stopped
     volumes:
       - ../backend:/app/backend
-      - ../frontend:/app/frontend
       - ../setup:/app/setup
     environment:
       - PYTHONUNBUFFERED=1
       - KEYDB_HOST=localhost
-
+  react:
+    build:
+      context: ..
+      dockerfile: setup/reactDockerfile
+    container_name: react_atlas
+    volumes:
+      - ../frontend/atlas:/app
+      - /app/node_modules
+    network_mode: host
+    restart: unless-stopped
+    environment:
+      - CHOKIDAR_USEPOLLING=true
   keydb:
     build: 
       context: ..
@@ -27,5 +37,7 @@ services:
     volumes: 
       - keydb_data:/data
     restart: unless-stopped
+
+  
 volumes:
   keydb_data:
