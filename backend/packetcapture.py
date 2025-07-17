@@ -47,7 +47,7 @@ class PacketCapture:
                         if flags & 0x02 != 0:
                             tcp_result: TCPResult = fingerprint_tcp(packet)
                             print(f"TCP Result: {tcp_result}")
-                            if tcp_result.match:
+                            if tcp_result.match != None:
                                 record = tcp_result.record
                                 data["os"] = record.label.name
                                 data["os_flavor"] = record.label.flavor
