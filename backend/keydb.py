@@ -30,8 +30,8 @@ class KeyDBClient:
                 metadata[k] = v
 
         record = {
-            "src_ip": device["src_ip"],
-            "src_mac": device["src_mac"],
+            "ip": device["src_ip"],
+            "mac": device["src_mac"],
             "last_seen": time.time(),
             "metadata": metadata,
         }

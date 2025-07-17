@@ -47,6 +47,7 @@ class PacketCapture:
                         if flags & 0x02 != 0:
                             tcp_result: TCPResult = fingerprint_tcp(packet)
                             if tcp_result.match != None:
+                                print(f"OS Match: src_ip={data['src_ip']}, os={tcp_result.match.record.label.name}")
                                 existing_record = self.db.get_device(data["src_ip"])
                                 if existing_record:
                                     metadata = existing_record.get("metadata", {})
