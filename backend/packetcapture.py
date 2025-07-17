@@ -47,11 +47,25 @@ class PacketCapture:
                         if flags & 0x02 != 0:
                             tcp_result: TCPResult = fingerprint_tcp(packet)
                             if tcp_result.match != None:
-                                print(f"TCP Result: {tcp_result.match}")
-                                record = tcp_result.match.record
-                                data["os"] = record.label.name
-                                data["os_flavor"] = record.label.flavor
-                                data["os_class"] = record.label.os_class
+                                existing_record = self.db.get_device(data["src_ip"])
+                                if existing_record:
+                                    metadata = existing_record.get("metadata", {})
+                                    metadata.update({
+                                        "os": tcp_result.match.record.label.name,
+                                        "os_flavor": tcp_result.match.record.label.flavor,
+                                        "os_class": tcp_result.match.record.label.os_class
+                                    })
+                                    existing_record["metadata"] = metadata
+                                    existing_record["last_seen"] = time.time()
+                                    self.db.store_device(existing_record)
+                                else:
+                                    data["metadata"] = {
+                                        "os": tcp_result.match.record.label.name,
+                                        "os_flavor": tcp_result.match.record.label.flavor,
+                                        "os_class": tcp_result.match.record.label.os_class
+                                    }
+                                    data["last_seen"] = time.time()
+                                    self.db.store_device(data)
                     except Exception as e:
                         print(f"Error fingerprinting TCP packet: {e}")
                     self.db.store_device(data)
