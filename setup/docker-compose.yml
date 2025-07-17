@@ -23,6 +23,7 @@ services:
     container_name: react_atlas
     volumes:
       - ../frontend/atlas:/app/atlas
+      - react_node_modules:/app/atlas/node_modules
     network_mode: host
     restart: unless-stopped
     environment:
@@ -40,3 +41,4 @@ services:
   
 volumes:
   keydb_data:
+  react_node_modules:
