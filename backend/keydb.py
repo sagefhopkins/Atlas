@@ -36,7 +36,7 @@ class DeviceRecord:
             connections=connections
         )
 class ConnectionRecord:
-    def __init__(self, src_ip, dst_ip, src_port=None, dst_port=None, protocol=None):
+    def __init__(self, src_ip, dst_ip, src_port=None, dst_port=None, protocol=None, timestamp=None):
         self.src_ip = src_ip
         self.dst_ip = dst_ip
         self.src_port = src_port
