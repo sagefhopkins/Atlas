@@ -48,7 +48,7 @@ class PacketCapture:
         mac = getattr(packet, "src", "00:00:00:00:00:00")
         protocol = packet[IP].proto
 
-        src_port, dst_port = extract_ports(packet)
+        src_port, dst_port = self.extract_ports(packet)
 
         metadata = {"type": "IP"}
 
