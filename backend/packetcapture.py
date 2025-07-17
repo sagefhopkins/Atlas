@@ -188,16 +188,26 @@ class PacketCapture:
 
     def capture_loop(self, queue, iface):
         def handle_packet(packet):
-            if ARP in packet and packet[ARP].op in (1, 2):
-                self.process_arp_packet(packet)
-            elif IP in packet:
-                self.process_ip_packet(packet)
+            try:
+                if ARP in packet and packet[ARP].op in (1, 2):
+                    self.process_arp_packet(packet)
+                elif IP in packet:
+                    self.process_ip_packet(packet)
+                
+                if TCP in packet and IP in packet:
+                    self.enrich_with_os_fingerprint(packet)
 
-            if TCP in packet and IP in packet:
-                self.enrich_with_os_fingerprint(packet)
+                if packet.haslayer(HTTPResponse) and Raw in packet:
+                    self.enrich_with_http_fingerprint(packet)
 
-            if packet.haslayer(HTTPResponse) and Raw in packet:
-                self.enrich_with_http_fingerprint(packet)
+                # Future protocol-specific logic
+                if packet.haslayer("ICMP"):
+                    self.process_generic_connection(packet, "ICMP")
+
+                if packet.haslayer("DNS"):
+                    self.process_generic_connection(packet, "DNS")
+            except Exception as e:
+                print(f"Packet handling error: {e}")
 
         sniff(iface=iface, prn=handle_packet, store=False)
 
