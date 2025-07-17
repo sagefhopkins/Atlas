@@ -202,10 +202,10 @@ class PacketCapture:
 
                 # Future protocol-specific logic
                 if packet.haslayer("ICMP"):
-                    self.process_generic_connection(packet, "ICMP")
+                    self.process_undefined_packet(packet, "ICMP")
 
                 if packet.haslayer("DNS"):
-                    self.process_generic_connection(packet, "DNS")
+                    self.process_undefined_packet(packet, "DNS")
             except Exception as e:
                 print(f"Packet handling error: {e}")
 
