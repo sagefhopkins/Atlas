@@ -5,8 +5,15 @@ from pyp0f.fingerprint import fingerprint_mtu, fingerprint_tcp, fingerprint_http
 from pyp0f.fingerprint.results import MTUResult, TCPResult, HTTPResult
 from multiprocessing import Process, Queue
 from backend.keydb import KeyDBClient, DeviceRecord, ConnectionRecord
+import ipaddress
 import signal
 import time
+
+def is_local_ip(ip):
+    try:
+        return ipaddress.ip_address(ip).is_private
+    except ValueError:
+        return False
 
 class PacketCapture:
     def __init__(self, iface=None):
@@ -34,15 +41,39 @@ class PacketCapture:
                 }
 
             elif IP in packet:
-                ip = packet[IP].src
-                # Note: You may want to track MAC from Ethernet layer if needed
+                src_ip = packet[IP].src
+                dst_ip = packet[IP].dst
+                mac = getattr(packet, "src", "00:00:00:00:00:00")
+
                 metadata = {
                     "type": "IP",
-                    "src_ip": packet[IP].src,
-                    "dst_ip": packet[IP].dst,
+                    "src_ip": src_ip,
+                    "dst_ip": dst_ip,
                     "protocol": packet[IP].proto
                 }
-                self.db.store_connection(packet[IP].src, packet[IP].dst)
+
+                if is_local_ip(src_ip):
+                    ip = src_ip
+                    existing = self.db.get_device(ip)
+                    if existing:
+                        record = DeviceRecord(
+                            ip=existing["ip"],
+                            mac=existing["mac"],
+                            metadata=existing.get("metadata", {})
+                        )
+                        record.update_metadata(metadata)
+                    else:
+                        record = DeviceRecord(ip=ip, mac=mac, metadata=metadata)
+
+                    record.connections.append(ConnectionRecord(src_ip=src_ip, dst_ip=dst_ip))
+
+                    self.db.store_device(record.to_dict())
+                    queue.put(record.to_dict())
+
+                if is_local_ip(src_ip):
+                    self.db.store_connection(src_ip, dst_ip)
+                elif is_local_ip(dst_ip):
+                    self.db.store_connection(dst_ip, src_ip)
 
             if TCP in packet:
                 try:
@@ -69,27 +100,6 @@ class PacketCapture:
                         metadata["http_version"] = http_result.version
                 except Exception as e:
                     print(f"Error fingerprinting HTTP packet: {e}")
-                if IP in packet:
-                    self.db.store_connection(packet[IP].src, packet[IP].dst)
-
-            if ip:
-                existing = self.db.get_device(ip)
-                if existing:
-                    record = DeviceRecord(
-                        ip=existing["ip"],
-                        mac=existing["mac"],
-                        metadata=existing.get("metadata", {})
-                    )
-                    record.update_metadata(metadata)
-                else:
-                    record = DeviceRecord(
-                        ip=ip,
-                        mac=mac,
-                        metadata=metadata
-                    )
-
-                self.db.store_device(record.to_dict())
-                queue.put(record.to_dict())
 
         sniff(iface=iface, prn=handle_packet, store=False)
 
