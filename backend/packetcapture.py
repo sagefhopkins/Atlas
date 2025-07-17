@@ -43,18 +43,19 @@ class PacketCapture:
                 dst_ip = packet[IP].dst
                 mac = getattr(packet, "src", "00:00:00:00:00:00")
                 protocol = packet[IP].proto
-                metadata.update({
-                    "type": "IP"
-                })
-
                 src_port = None
                 dst_port = None
+
                 if TCP in packet:
                     src_port = packet[TCP].sport
                     dst_port = packet[TCP].dport
                 elif UDP in packet:
                     src_port = packet[UDP].sport
                     dst_port = packet[UDP].dport
+
+                metadata.update({
+                    "type": "IP"
+                })
 
                 if is_local_ip(src_ip):
                     existing = self.db.get_device(src_ip)
@@ -74,14 +75,13 @@ class PacketCapture:
                     record.connections.append(ConnectionRecord(
                         src_ip=src_ip,
                         dst_ip=dst_ip,
-                        src_port=packet[TCP].sport if TCP in packet else packet[UDP].sport if UDP in packet else None,
-                        dst_port=packet[TCP].dport if TCP in packet else packet[UDP].dport if UDP in packet else None,
-                        protocol=packet[IP].proto if IP in packet else None
+                        src_port=src_port,
+                        dst_port=dst_port,
+                        protocol=protocol
                     ))
 
                     self.db.store_device(record.to_dict())
                     queue.put(record.to_dict())
-
                 if src_ip and dst_ip:
                     if is_local_ip(src_ip):
                         self.db.store_connection(src_ip, dst_ip)
