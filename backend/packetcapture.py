@@ -27,10 +27,10 @@ class PacketCapture:
 
     def extract_ports(self, packet):
         if TCP in packet:
-            print(f"TCP ports: {packet[TCP].sport}, {packet[TCP].dport}")
+            #print(f"TCP ports: {packet[TCP].sport}, {packet[TCP].dport}")
             return packet[TCP].sport, packet[TCP].dport, "TCP"
         elif UDP in packet:
-            print(f"UDP ports: {packet[UDP].sport}, {packet[UDP].dport}")
+            #print(f"UDP ports: {packet[UDP].sport}, {packet[UDP].dport}")
             return packet[UDP].sport, packet[UDP].dport, "UDP"
         return None, None, None
     
