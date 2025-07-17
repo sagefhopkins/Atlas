@@ -52,29 +52,6 @@ class PacketCapture:
                     "protocol": packet[IP].proto
                 }
 
-                if is_local_ip(src_ip):
-                    ip = src_ip
-                    existing = self.db.get_device(ip)
-                    if existing:
-                        record = DeviceRecord(
-                            ip=existing["ip"],
-                            mac=existing["mac"],
-                            metadata=existing.get("metadata", {})
-                        )
-                        record.update_metadata(metadata)
-                    else:
-                        record = DeviceRecord(ip=ip, mac=mac, metadata=metadata)
-
-                    record.connections.append(ConnectionRecord(src_ip=src_ip, dst_ip=dst_ip))
-
-                    self.db.store_device(record.to_dict())
-                    queue.put(record.to_dict())
-
-                if is_local_ip(src_ip):
-                    self.db.store_connection(src_ip, dst_ip)
-                elif is_local_ip(dst_ip):
-                    self.db.store_connection(dst_ip, src_ip)
-
             if TCP in packet:
                 try:
                     flags = packet[TCP].flags
@@ -100,6 +77,29 @@ class PacketCapture:
                         metadata["http_version"] = http_result.version
                 except Exception as e:
                     print(f"Error fingerprinting HTTP packet: {e}")
+
+                if is_local_ip(src_ip):
+                    ip = src_ip
+                    existing = self.db.get_device(ip)
+                    if existing:
+                        record = DeviceRecord(
+                            ip=existing["ip"],
+                            mac=existing["mac"],
+                            metadata=existing.get("metadata", {})
+                        )
+                        record.update_metadata(metadata)
+                    else:
+                        record = DeviceRecord(ip=ip, mac=mac, metadata=metadata)
+
+                    record.connections.append(ConnectionRecord(src_ip=src_ip, dst_ip=dst_ip))
+
+                    self.db.store_device(record.to_dict())
+                    queue.put(record.to_dict())
+
+                if is_local_ip(src_ip):
+                    self.db.store_connection(src_ip, dst_ip)
+                elif is_local_ip(dst_ip):
+                    self.db.store_connection(dst_ip, src_ip)
 
         sniff(iface=iface, prn=handle_packet, store=False)
 
