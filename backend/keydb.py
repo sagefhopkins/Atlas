@@ -22,18 +22,38 @@ class DeviceRecord:
             "metadata": self.metadata,
             "connections": [conn.to_dict() for conn in self.connections]
         }
+    
+    @staticmethod
+    def from_dict(data):
+        connections = [
+            ConnectionRecord.from_dict(conn)
+            for conn in data.get("connections", [])
+        ]
+        return DeviceRecord(
+            ip=data.get("ip"),
+            mac=data.get("mac"),
+            metadata=data.get("metadata"),
+            connections=connections
+        )
 class ConnectionRecord:
-    def __init__(self, src_ip, dst_ip):
+    def __init__(self, src_ip, dst_ip, timestamp=None):
         self.src_ip = src_ip
         self.dst_ip = dst_ip
         self.timestamp = time.time()
-
+        
     def to_dict(self):
         return {
             "src_ip": self.src_ip,
             "dst_ip": self.dst_ip,
             "timestamp": self.timestamp
         }
+    @staticmethod
+    def from_dict(data):
+        return ConnectionRecord(
+            src_ip=data.get("src_ip"),
+            dst_ip=data.get("dst_ip"),
+            timestamp=data.get("timestamp")
+        )
 
 class KeyDBClient:
     def __init__(self, host=None, port=6379, db=0):
