@@ -101,7 +101,7 @@ const NetworkGraph = () => {
         linksRef.current = links;
 
         const simulation = d3.forceSimulation(nodes)
-            .force('link', d3.forceLink(links).id(d => d.id).distance(100))
+            .force('link', d3.forceLink(links).id(d => d.id).distance(25))
             .force('charge', d3.forceManyBody().strength(-100))
             .force('collide', d3.forceCollide(10));
 
