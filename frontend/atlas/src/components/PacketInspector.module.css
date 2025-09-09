@@ -1,0 +1,652 @@
+.packetInspector {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: rgba(0, 0, 0, 0.8);
+    backdrop-filter: blur(8px);
+    z-index: 1000;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 20px;
+    box-sizing: border-box;
+}
+
+.packetInspector > div {
+    background: linear-gradient(145deg, #1e293b, #334155);
+    border-radius: 12px;
+    width: 95vw;
+    height: 90vh;
+    max-width: 1400px;
+    color: #f8fafc;
+    box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);
+    display: flex;
+    flex-direction: column;
+}
+
+.header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 20px 30px;
+    border-bottom: 1px solid #475569;
+    background: rgba(30, 41, 59, 0.8);
+    border-radius: 12px 12px 0 0;
+}
+
+.header h2 {
+    margin: 0;
+    color: #f8fafc;
+    font-size: 1.5rem;
+    font-weight: 600;
+}
+
+.closeButton {
+    background: #ef4444;
+    border: none;
+    border-radius: 8px;
+    color: white;
+    width: 40px;
+    height: 40px;
+    cursor: pointer;
+    font-size: 1.2rem;
+    font-weight: bold;
+    transition: all 0.2s ease;
+}
+
+.closeButton:hover {
+    background: #dc2626;
+    transform: scale(1.05);
+}
+
+.tabs {
+    display: flex;
+    border-bottom: 1px solid #475569;
+    background: rgba(51, 65, 85, 0.5);
+}
+
+.tab {
+    background: none;
+    border: none;
+    padding: 15px 25px;
+    color: #94a3b8;
+    cursor: pointer;
+    font-size: 0.95rem;
+    font-weight: 500;
+    transition: all 0.2s ease;
+    border-bottom: 3px solid transparent;
+}
+
+.tab:hover:not(:disabled) {
+    color: #f8fafc;
+    background: rgba(255, 255, 255, 0.05);
+}
+
+.tab:disabled {
+    color: #64748b;
+    cursor: not-allowed;
+    opacity: 0.5;
+}
+
+.tabActive {
+    color: #60a5fa !important;
+    border-bottom-color: #60a5fa !important;
+    background: rgba(96, 165, 250, 0.1) !important;
+}
+
+.error {
+    background: #fee2e2;
+    color: #dc2626;
+    padding: 12px 20px;
+    margin: 15px 20px;
+    border-radius: 8px;
+    border: 1px solid #fecaca;
+    font-size: 0.9rem;
+}
+
+.loading {
+    padding: 40px;
+    text-align: center;
+    color: #94a3b8;
+    font-size: 1.1rem;
+}
+
+/* Packet List Styles */
+.packetList {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+}
+
+.listHeader {
+    padding: 20px;
+    border-bottom: 1px solid #475569;
+    background: rgba(51, 65, 85, 0.3);
+}
+
+.listControls {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 15px;
+}
+
+.refreshButton {
+    background: #3b82f6;
+    color: white;
+    border: none;
+    padding: 10px 16px;
+    border-radius: 6px;
+    cursor: pointer;
+    font-size: 0.9rem;
+    font-weight: 500;
+    transition: background-color 0.2s ease;
+}
+
+.refreshButton:hover {
+    background: #2563eb;
+}
+
+.connectionInfo {
+    flex: 1;
+    display: flex;
+    justify-content: center;
+}
+
+.connectionInfo span {
+    background: rgba(59, 130, 246, 0.1);
+    color: #60a5fa;
+    padding: 8px 16px;
+    border-radius: 20px;
+    font-size: 0.85rem;
+    font-family: 'Monaco', 'Consolas', monospace;
+    border: 1px solid rgba(59, 130, 246, 0.2);
+}
+
+.packetsTable {
+    flex: 1;
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+}
+
+.tableHeader {
+    display: grid;
+    grid-template-columns: 150px 180px 180px 100px 100px 160px 80px;
+    gap: 10px;
+    padding: 15px 20px;
+    background: rgba(51, 65, 85, 0.6);
+    border-bottom: 1px solid #475569;
+    font-weight: 600;
+    font-size: 0.85rem;
+    color: #cbd5e1;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+}
+
+.packetRow {
+    display: grid;
+    grid-template-columns: 150px 180px 180px 100px 100px 160px 80px;
+    gap: 10px;
+    padding: 12px 20px;
+    border-bottom: 1px solid #334155;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    font-size: 0.9rem;
+}
+
+.packetRow:hover {
+    background: rgba(59, 130, 246, 0.1);
+    border-left: 4px solid #3b82f6;
+    padding-left: 16px;
+}
+
+.selectedRow {
+    background: rgba(34, 197, 94, 0.1) !important;
+    border-left: 4px solid #22c55e !important;
+    padding-left: 16px !important;
+}
+
+.packetType {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.typeIcon {
+    font-size: 1.1rem;
+}
+
+.sourceInfo, .destInfo {
+    display: flex;
+    align-items: center;
+    font-family: 'Monaco', 'Consolas', monospace;
+    font-size: 0.85rem;
+}
+
+.port {
+    color: #94a3b8;
+    font-size: 0.8rem;
+}
+
+.protocol {
+    font-family: 'Monaco', 'Consolas', monospace;
+    font-weight: 600;
+    color: #fbbf24;
+}
+
+.size {
+    font-family: 'Monaco', 'Consolas', monospace;
+    color: #94a3b8;
+}
+
+.timestamp {
+    font-size: 0.8rem;
+    color: #94a3b8;
+}
+
+.riskIndicator {
+    padding: 4px 8px;
+    border-radius: 4px;
+    font-size: 0.75rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    color: white;
+    text-align: center;
+    min-width: 50px;
+}
+
+.noPackets {
+    padding: 60px;
+    text-align: center;
+    color: #64748b;
+    font-size: 1.1rem;
+}
+
+/* Packet Details Styles */
+.packetDetails {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+}
+
+.detailsHeader {
+    padding: 20px;
+    border-bottom: 1px solid #475569;
+    background: rgba(51, 65, 85, 0.3);
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.detailsHeader h3 {
+    margin: 0;
+    color: #f8fafc;
+    font-size: 1.2rem;
+    font-family: 'Monaco', 'Consolas', monospace;
+}
+
+.exportButtons {
+    display: flex;
+    gap: 10px;
+}
+
+.exportButton {
+    background: #6366f1;
+    color: white;
+    border: none;
+    padding: 8px 12px;
+    border-radius: 6px;
+    cursor: pointer;
+    font-size: 0.85rem;
+    font-weight: 500;
+    transition: background-color 0.2s ease;
+}
+
+.exportButton:hover {
+    background: #5b21b6;
+}
+
+.detailsContent {
+    flex: 1;
+    overflow-y: auto;
+    padding: 20px;
+}
+
+.section {
+    margin-bottom: 30px;
+    background: rgba(51, 65, 85, 0.3);
+    border-radius: 8px;
+    padding: 20px;
+    border: 1px solid #475569;
+}
+
+.section h4 {
+    margin: 0 0 15px 0;
+    color: #60a5fa;
+    font-size: 1.1rem;
+    font-weight: 600;
+    border-bottom: 1px solid #475569;
+    padding-bottom: 8px;
+}
+
+.summaryGrid, .routingGrid, .securityGrid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+    gap: 15px;
+}
+
+.summaryItem, .routingItem, .securityItem {
+    display: flex;
+    flex-direction: column;
+    gap: 5px;
+}
+
+.summaryItem label, .routingItem label, .securityItem label {
+    font-size: 0.85rem;
+    color: #94a3b8;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+}
+
+.summaryItem span, .routingItem span, .securityItem span {
+    color: #f8fafc;
+    font-family: 'Monaco', 'Consolas', monospace;
+    font-size: 0.9rem;
+}
+
+.direction {
+    font-weight: 600;
+    text-transform: capitalize;
+}
+
+.riskBadge {
+    padding: 6px 12px;
+    border-radius: 16px;
+    font-size: 0.8rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    color: white;
+    display: inline-block;
+    max-width: fit-content;
+}
+
+.warningsSection {
+    margin-top: 15px;
+}
+
+.warningsSection label {
+    display: block;
+    margin-bottom: 8px;
+    font-size: 0.9rem;
+    color: #fbbf24;
+    font-weight: 600;
+}
+
+.warningsList {
+    margin: 0;
+    padding-left: 20px;
+}
+
+.warningItem {
+    color: #fed7aa;
+    margin-bottom: 4px;
+    font-size: 0.85rem;
+}
+
+.headerSection {
+    margin-bottom: 20px;
+}
+
+.headerSection h5 {
+    margin: 0 0 10px 0;
+    color: #fbbf24;
+    font-size: 1rem;
+    font-weight: 600;
+}
+
+.headerContent {
+    background: rgba(15, 23, 42, 0.6);
+    padding: 15px;
+    border-radius: 6px;
+    border: 1px solid #334155;
+}
+
+.jsonDisplay {
+    margin: 0;
+    font-family: 'Monaco', 'Consolas', monospace;
+    font-size: 0.8rem;
+    color: #e2e8f0;
+    white-space: pre-wrap;
+    word-break: break-all;
+}
+
+.appLayerSection {
+    margin-bottom: 25px;
+}
+
+.appLayerSection h5 {
+    margin: 0 0 15px 0;
+    color: #34d399;
+    font-size: 1rem;
+    font-weight: 600;
+}
+
+.dnsInfo, .httpInfo {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+}
+
+.dnsItem, .httpItem {
+    display: grid;
+    grid-template-columns: 120px 1fr;
+    gap: 10px;
+    align-items: start;
+}
+
+.dnsItem label, .httpItem label {
+    font-size: 0.85rem;
+    color: #94a3b8;
+    font-weight: 600;
+}
+
+.dnsItem span, .httpItem span {
+    color: #f8fafc;
+    font-family: 'Monaco', 'Consolas', monospace;
+    font-size: 0.9rem;
+    word-break: break-all;
+}
+
+.userAgent {
+    font-size: 0.8rem !important;
+}
+
+.dnsQueries, .dnsAnswers {
+    grid-column: 1 / -1;
+    margin-top: 10px;
+}
+
+.dnsQueries label, .dnsAnswers label {
+    display: block;
+    margin-bottom: 8px;
+    color: #60a5fa;
+    font-weight: 600;
+}
+
+.dnsQueries ul, .dnsAnswers ul {
+    margin: 0;
+    padding-left: 20px;
+    list-style-type: disc;
+}
+
+.dnsQueries li, .dnsAnswers li {
+    color: #e2e8f0;
+    margin-bottom: 4px;
+    font-family: 'Monaco', 'Consolas', monospace;
+    font-size: 0.85rem;
+}
+
+.payloadPreview {
+    background: rgba(15, 23, 42, 0.6);
+    padding: 15px;
+    border-radius: 6px;
+    border: 1px solid #334155;
+    max-height: 300px;
+    overflow-y: auto;
+}
+
+.payloadPreview pre {
+    margin: 0;
+    font-family: 'Monaco', 'Consolas', monospace;
+    font-size: 0.8rem;
+    color: #e2e8f0;
+    white-space: pre-wrap;
+    word-break: break-all;
+}
+
+/* Hex Dump Styles */
+.hexDump {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+}
+
+.hexHeader {
+    padding: 20px;
+    border-bottom: 1px solid #475569;
+    background: rgba(51, 65, 85, 0.3);
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.hexHeader h3 {
+    margin: 0;
+    color: #f8fafc;
+    font-size: 1.2rem;
+}
+
+.hexInfo {
+    color: #94a3b8;
+    font-family: 'Monaco', 'Consolas', monospace;
+    font-size: 0.9rem;
+}
+
+.hexContent {
+    flex: 1;
+    overflow: auto;
+    padding: 20px;
+    background: rgba(15, 23, 42, 0.6);
+}
+
+.hexData {
+    margin: 0;
+    font-family: 'Monaco', 'Consolas', monospace;
+    font-size: 0.85rem;
+    line-height: 1.4;
+    color: #e2e8f0;
+    white-space: pre;
+}
+
+.noDetails {
+    flex: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: #64748b;
+    font-size: 1.1rem;
+}
+
+/* Responsive Design */
+@media (max-width: 1200px) {
+    .tableHeader, .packetRow {
+        grid-template-columns: 120px 150px 150px 90px 90px 130px 70px;
+        font-size: 0.85rem;
+    }
+    
+    .summaryGrid, .routingGrid, .securityGrid {
+        grid-template-columns: 1fr;
+    }
+}
+
+@media (max-width: 768px) {
+    .packetInspector {
+        padding: 10px;
+    }
+    
+    .packetInspector > div {
+        width: 100vw;
+        height: 95vh;
+    }
+    
+    .header {
+        padding: 15px 20px;
+    }
+    
+    .header h2 {
+        font-size: 1.3rem;
+    }
+    
+    .tabs .tab {
+        padding: 12px 15px;
+        font-size: 0.85rem;
+    }
+    
+    .tableHeader, .packetRow {
+        grid-template-columns: 100px 120px 120px 70px 70px 100px 60px;
+        font-size: 0.8rem;
+        padding: 10px 15px;
+    }
+    
+    .listControls {
+        flex-direction: column;
+        gap: 10px;
+    }
+    
+    .connectionInfo {
+        order: -1;
+    }
+    
+    .detailsContent {
+        padding: 15px;
+    }
+    
+    .dnsItem, .httpItem {
+        grid-template-columns: 1fr;
+        gap: 5px;
+    }
+}
+
+/* Scrollbar Styling */
+.detailsContent::-webkit-scrollbar,
+.hexContent::-webkit-scrollbar,
+.payloadPreview::-webkit-scrollbar {
+    width: 8px;
+}
+
+.detailsContent::-webkit-scrollbar-track,
+.hexContent::-webkit-scrollbar-track,
+.payloadPreview::-webkit-scrollbar-track {
+    background: rgba(51, 65, 85, 0.3);
+    border-radius: 4px;
+}
+
+.detailsContent::-webkit-scrollbar-thumb,
+.hexContent::-webkit-scrollbar-thumb,
+.payloadPreview::-webkit-scrollbar-thumb {
+    background: rgba(148, 163, 184, 0.5);
+    border-radius: 4px;
+}
+
+.detailsContent::-webkit-scrollbar-thumb:hover,
+.hexContent::-webkit-scrollbar-thumb:hover,
+.payloadPreview::-webkit-scrollbar-thumb:hover {
+    background: rgba(148, 163, 184, 0.7);
+}

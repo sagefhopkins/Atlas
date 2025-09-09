@@ -1,17 +1,22 @@
-import redis
 import os
 import time
+import json
+import logging
+import redis
+from redis.exceptions import ResponseError, RedisError
+
 
 class DeviceRecord:
-    def __init__(self, ip, mac, metadata=None, connections=None):
+    def __init__(self, ip, mac, metadata=None, connections=None, last_seen=None):
         self.ip = ip
         self.mac = mac or "00:00:00:00:00:00"
-        self.last_seen = time.time()
+        self.last_seen = last_seen if last_seen is not None else time.time()
         self.metadata = metadata or {}
         self.connections = connections or []
 
     def update_metadata(self, new_metadata):
-        self.metadata.update(new_metadata)
+        if new_metadata:
+            self.metadata.update(new_metadata)
         self.last_seen = time.time()
 
     def to_dict(self):
@@ -20,30 +25,33 @@ class DeviceRecord:
             "mac": self.mac,
             "last_seen": self.last_seen,
             "metadata": self.metadata,
-            "connections": [conn.to_dict() for conn in self.connections]
+            "connections": [conn.to_dict() if hasattr(conn, 'to_dict') else conn for conn in self.connections],
         }
-    
+
     @staticmethod
     def from_dict(data):
-        connections = [
-            ConnectionRecord.from_dict(conn)
-            for conn in data.get("connections", [])
-        ]
+        if not data:
+            return None
+        connections = [ConnectionRecord.from_dict(c) for c in data.get("connections", [])]
         return DeviceRecord(
             ip=data.get("ip"),
             mac=data.get("mac"),
             metadata=data.get("metadata"),
-            connections=connections
+            connections=connections,
+            last_seen=data.get("last_seen"),
         )
+
+
 class ConnectionRecord:
-    def __init__(self, src_ip, dst_ip, src_port=None, dst_port=None, protocol=None, timestamp=None):
+    def __init__(self, src_ip, dst_ip, src_port=None, dst_port=None, protocol=None, timestamp=None, packet_id=None):
         self.src_ip = src_ip
         self.dst_ip = dst_ip
         self.src_port = src_port
         self.dst_port = dst_port
         self.protocol = protocol
-        self.timestamp = time.time()
-        
+        self.timestamp = timestamp if timestamp is not None else time.time()
+        self.packet_id = packet_id  # Reference to stored packet data
+
     def to_dict(self):
         return {
             "src_ip": self.src_ip,
@@ -51,86 +59,292 @@ class ConnectionRecord:
             "src_port": self.src_port,
             "dst_port": self.dst_port,
             "protocol": self.protocol,
-            "timestamp": self.timestamp
+            "timestamp": self.timestamp,
+            "packet_id": self.packet_id,
         }
+
     @staticmethod
     def from_dict(data):
+        if not data:
+            return None
         return ConnectionRecord(
             src_ip=data.get("src_ip"),
             dst_ip=data.get("dst_ip"),
             src_port=data.get("src_port"),
             dst_port=data.get("dst_port"),
             protocol=data.get("protocol"),
-            timestamp=data.get("timestamp")
+            timestamp=data.get("timestamp"),
+            packet_id=data.get("packet_id"),
         )
 
+
+class PacketRecord:
+    def __init__(self, packet_id, raw_data, headers, analysis, timestamp=None):
+        self.packet_id = packet_id
+        self.raw_data = raw_data  # Hex representation of packet bytes
+        self.headers = headers  # Parsed protocol headers
+        self.analysis = analysis  # Detailed packet analysis
+        self.timestamp = timestamp if timestamp is not None else time.time()
+
+    def to_dict(self):
+        return {
+            "packet_id": self.packet_id,
+            "raw_data": self.raw_data,
+            "headers": self.headers,
+            "analysis": self.analysis,
+            "timestamp": self.timestamp,
+        }
+
+    @staticmethod
+    def from_dict(data):
+        if not data:
+            return None
+        return PacketRecord(
+            packet_id=data.get("packet_id"),
+            raw_data=data.get("raw_data"),
+            headers=data.get("headers"),
+            analysis=data.get("analysis"),
+            timestamp=data.get("timestamp"),
+        )
+
+
+
 class KeyDBClient:
-    def __init__(self, host=None, port=6379, db=0):
-        host = host or os.environ.get("KEYDB_HOST", "localhost")
-        self.redis = redis.Redis(host=host, port=port, decode_responses=True)
-        self.json = self.redis.json()
+    def __init__(self, host="localhost", port=6379, db=0, ttl_seconds=600):
+        self.redis = redis.Redis(host=host, port=port, db=db, decode_responses=True)
+        self.ttl = int(ttl_seconds)
+        self.has_json = self._detect_redisjson()
+        self._json_client = self.redis.json() if self.has_json else None
+        logging.info(f"KeyDB/Redis connected @ {host}:{port} | RedisJSON: {self.has_json}")
 
-    def _safe_json_set(self, key, path, obj):
+    def _detect_redisjson(self) -> bool:
         try:
-            self.json.set(key, path, obj)
-        except redis.exceptions.ResponseError as e:
-            if "WRONGTYPE" in str(e):
-                self.redis.delete(key)
-                self.json.set(key, path, obj)
+            mods = self.redis.execute_command("MODULE", "LIST")
+            mod_strs = [str(m).lower() for m in mods]
+            if any("rejson" in s or "redisjson" in s for s in mod_strs):
+                return True
+        except ResponseError:
+            pass
+        except RedisError:
+            pass
+
+        try:
+            self.redis.execute_command("JSON.HELLO")  # will error if present but wrong args
+        except ResponseError as e:
+            if "unknown command" in str(e).lower():
+                return False
+            return True
+        except RedisError:
+            return False
+        return True
+
+    def _safe_json_set(self, key: str, path: str, obj: dict):
+        payload = json.dumps(obj, separators=(",", ":"))
+        if self.has_json and self._json_client:
+            try:
+                self._json_client.set(key, path, obj)
+                return
+            except ResponseError as e:
+                msg = str(e)
+                if "WRONGTYPE" in msg:
+                    self.redis.delete(key)
+                    self._json_client.set(key, path, obj)
+                    return
+                if "unknown command" in msg.lower():
+                    self.has_json = False
+                else:
+                    raise
+            except RedisError:
+                self.has_json = False
+
+        self.redis.set(key, payload)
+
+    def _safe_json_get(self, key: str):
+        if self.has_json and self._json_client:
+            try:
+                return self._json_client.get(key)
+            except ResponseError as e:
+                if "unknown command" in str(e).lower():
+                    self.has_json = False
+                else:
+                    raise
+            except RedisError:
+                self.has_json = False
+
+        s = self.redis.get(key)
+        if not s:
+            return None
+        try:
+            return json.loads(s)
+        except Exception:
+            return None
+
+    def store_device(self, device: dict):
+        """device can be a dict with keys: ip/src_ip, mac/src_mac, metadata"""
+        try:
+            ip = device.get("src_ip") or device.get("ip")
+            mac = device.get("src_mac") or device.get("mac")
+            if not ip or not mac:
+                return
+
+            key = f"device:{ip}"
+            existing = self.get_device(ip)
+            if existing:
+                record = DeviceRecord.from_dict(existing)
+                record.update_metadata(device.get("metadata", {}))
             else:
-                raise
+                record = DeviceRecord(ip=ip, mac=mac, metadata=device.get("metadata", {}), connections=[])
 
-    def store_device(self, device):
-        ip = device.get("src_ip") or device.get("ip")
-        mac = device.get("src_mac") or device.get("mac")
+            self._safe_json_set(key, ".", record.to_dict())
+            self.redis.expire(key, self.ttl)
+        except Exception as e:
+            logging.exception(f"store_device failed for {device}: {e}")
 
-        if not ip or not mac:
-            return
-        key = f"device:{ip}"
-        existing = self.get_device(ip)
-
-        if existing:
-            record = DeviceRecord(
-                ip=existing["ip"],
-                mac=existing["mac"],
-                metadata=existing.get("metadata", {}),
-                connections=[ConnectionRecord(**conn) for conn in existing.get("connections", [])]
-            )
-            record.update_metadata(device.get("metadata", {}))
-        else:
-            record = DeviceRecord(
-                ip=ip,
-                mac=mac,
-                metadata=device.get("metadata", {}),
-                connections=[]
-            )
-
-        self._safe_json_set(key, ".", record.to_dict())
-        self.redis.expire(key, 600)
+    def _conn_dedupe_key(self, c: dict) -> str:
+        return f'{c.get("dst_ip")}:{c.get("dst_port")}:{c.get("protocol")}'
 
     def store_connection(self, src_ip, dst_ip, src_port=None, dst_port=None, protocol=None):
-        link_key = f"link:{src_ip}:{dst_ip}"
-        self._safe_json_set(link_key, ".", ConnectionRecord(src_ip, dst_ip).to_dict())
+        try:
+            link_key = f"link:{src_ip}:{dst_ip}"
+            link_rec = ConnectionRecord(src_ip, dst_ip, src_port, dst_port, protocol).to_dict()
+            self._safe_json_set(link_key, ".", link_rec)
+            self.redis.expire(link_key, self.ttl)
 
-        device_key = f"device:{src_ip}"
-        device_data = self.get_device(src_ip)
-        if device_data:
-            device_data.setdefault("connections", [])
-            connection = ConnectionRecord(src_ip, dst_ip, src_port, dst_port, protocol).to_dict()
+            device_key = f"device:{src_ip}"
+            device_data = self.get_device(src_ip)
+            if not device_data:
+                conn_obj = ConnectionRecord(src_ip, dst_ip, src_port, dst_port, protocol)
+                dev = DeviceRecord(ip=src_ip, mac="00:00:00:00:00:00", connections=[conn_obj])
+                self._safe_json_set(device_key, ".", dev.to_dict())
+                self.redis.expire(device_key, self.ttl)
+                return
 
-            if connection not in device_data["connections"]:
-                device_data["connections"].append(connection)
-                self._safe_json_set(device_key, ".", device_data)
-                self.redis.expire(device_key, 600)
+            conns = device_data.setdefault("connections", [])
+            have = {self._conn_dedupe_key(c) for c in conns}
+            key_ = self._conn_dedupe_key(link_rec)
+            if key_ not in have:
+                conns.append(link_rec)
+            else:
+                for c in conns:
+                    if self._conn_dedupe_key(c) == key_:
+                        c["timestamp"] = link_rec["timestamp"]
+                        break
+
+            device_data["last_seen"] = time.time()
+            self._safe_json_set(device_key, ".", device_data)
+            self.redis.expire(device_key, self.ttl)
+        except Exception as e:
+            logging.exception(f"store_connection failed for {src_ip}->{dst_ip}: {e}")
 
     def get_all_devices(self):
-        return [self.json.get(k) for k in self.redis.keys("device:*")]
+        try:
+            results = []
+            for k in self._scan_keys("device:*"):
+                data = self._safe_json_get(k)
+                if data:
+                    results.append(data)
+            return results
+        except Exception as e:
+            logging.exception(f"get_all_devices failed: {e}")
+            return []
 
     def get_device(self, ip):
-        return self.json.get(f"device:{ip}")
-    
+        try:
+            return self._safe_json_get(f"device:{ip}")
+        except Exception as e:
+            logging.exception(f"get_device failed for {ip}: {e}")
+            return None
+
+    def get_all_links(self):
+        try:
+            results = []
+            for k in self._scan_keys("link:*"):
+                data = self._safe_json_get(k)
+                if data:
+                    results.append(data)
+            return results
+        except Exception as e:
+            logging.exception(f"get_all_links failed: {e}")
+            return []
+
+    def store_packet(self, packet_record: PacketRecord):
+        try:
+            key = f"packet:{packet_record.packet_id}"
+            self._safe_json_set(key, ".", packet_record.to_dict())
+            self.redis.expire(key, self.ttl * 2)  # 2x TTL for packets
+        except Exception as e:
+            logging.exception(f"store_packet failed for {packet_record.packet_id}: {e}")
+
+    def get_packet(self, packet_id: str):
+        try:
+            return self._safe_json_get(f"packet:{packet_id}")
+        except Exception as e:
+            logging.exception(f"get_packet failed for {packet_id}: {e}")
+            return None
+
+    def get_packets_by_connection(self, src_ip: str, dst_ip: str, src_port=None, dst_port=None, protocol=None, limit=50):
+        try:
+            results = []
+            pattern = f"packet:*"
+            count = 0
+            
+            for k in self._scan_keys(pattern):
+                if count >= limit:
+                    break
+                    
+                data = self._safe_json_get(k)
+                if data and data.get("analysis"):
+                    analysis = data["analysis"]
+                    if (analysis.get("src_ip") == src_ip and analysis.get("dst_ip") == dst_ip and
+                        (src_port is None or analysis.get("src_port") == src_port) and
+                        (dst_port is None or analysis.get("dst_port") == dst_port) and
+                        (protocol is None or analysis.get("protocol") == protocol)):
+                        results.append(data)
+                        count += 1
+                        
+            results.sort(key=lambda x: x.get("timestamp", 0), reverse=True)
+            return results
+        except Exception as e:
+            logging.exception(f"get_packets_by_connection failed: {e}")
+            return []
+
+    def get_recent_packets(self, limit=100):
+        try:
+            results = []
+            pattern = f"packet:*"
+            count = 0
+            
+            for k in self._scan_keys(pattern):
+                if count >= limit * 2:  # Get more than needed for sorting
+                    break
+                    
+                data = self._safe_json_get(k)
+                if data:
+                    results.append(data)
+                    count += 1
+                    
+            results.sort(key=lambda x: x.get("timestamp", 0), reverse=True)
+            return results[:limit]
+        except Exception as e:
+            logging.exception(f"get_recent_packets failed: {e}")
+            return []
+
     def clear_all(self):
-        for k in self.redis.keys("device:*"):
-            self.redis.delete(k)
-        for k  in self.redis.keys("link:*"):
-            self.redis.delete(k)
+        try:
+            to_del = (list(self._scan_keys("device:*")) + 
+                     list(self._scan_keys("link:*")) + 
+                     list(self._scan_keys("packet:*")))
+            if to_del:
+                self.redis.delete(*to_del)
+        except Exception as e:
+            logging.exception(f"clear_all failed: {e}")
+
+    def _scan_keys(self, pattern, count=500):
+        cursor = 0
+        while True:
+            cursor, keys = self.redis.scan(cursor=cursor, match=pattern, count=count)
+            for k in keys:
+                yield k
+            if cursor == 0:
+                break
+

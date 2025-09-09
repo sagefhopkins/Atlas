@@ -1,8 +1,11 @@
 import React, { useEffect, useRef, useState } from 'react';
 import * as d3 from 'd3';
 import axios from 'axios';
+import styles from './NetworkGraph.module.css';
+import NavigationBar from './NavigationBar';
+import PacketInspector from './PacketInspector';
 
-const GATEWAY_IP = '192.168.10.1';
+const GATEWAY_IP = '127.0.0.1';
 const LOCAL_NODE = 'LOCAL';
 const REMOTE_NODE = 'REMOTE';
 
@@ -11,18 +14,48 @@ const NetworkGraph = () => {
     const [selectedNode, setSelectedNode] = useState(null);
     const [selectedConnection, setSelectedConnection] = useState(null);
     const [allDevices, setAllDevices] = useState([]);
+    const [filteredDevices, setFilteredDevices] = useState(null);
+    const [activeTab, setActiveTab] = useState('filters');
+    const [showGraph, setShowGraph] = useState(true);
+    const [showPacketInspector, setShowPacketInspector] = useState(false);
     const nodesRef = useRef([]);
     const linksRef = useRef([]);
     const linkPathsGroupRef = useRef();
 
-    const cellStyle = {
-        border: '1px solid #ccc',
-        padding: '8px',
-        textAlign: 'left',
+    const updateSelectedConnectionLines = () => {
+        const group = linkPathsGroupRef.current;
+        if (!group) return;
+        
+        group.selectAll('*').remove();
+        
+        if (!selectedConnection) return;
+
+        const { src_ip, dst_ip } = selectedConnection;
+        const gateway = GATEWAY_IP;
+        const points = [];
+        const nodeMap = new Map(nodesRef.current.map(n => [n.id, n]));
+
+        if (nodeMap.has(src_ip)) points.push(nodeMap.get(src_ip));
+        if (src_ip !== gateway && dst_ip !== gateway && nodeMap.has(gateway)) {
+            points.push(nodeMap.get(gateway));
+        }
+        if (nodeMap.has(dst_ip)) points.push(nodeMap.get(dst_ip));
+
+        for (let i = 0; i < points.length - 1; i++) {
+            group.append('line')
+                .attr('stroke', '#4caf50')
+                .attr('stroke-width', 4)
+                .attr('stroke-dasharray', '8,4')
+                .attr('x1', points[i].x)
+                .attr('y1', points[i].y)
+                .attr('x2', points[i + 1].x)
+                .attr('y2', points[i + 1].y)
+                .style('filter', 'drop-shadow(0 0 6px #4caf50)');
+        }
     };
 
     useEffect(() => {
-        axios.get('http://192.168.10.1:8000/devices')
+        axios.get('http://localhost:8000/devices')
             .then(response => {
                 setAllDevices(response.data);
                 renderGraph(response.data);
@@ -106,12 +139,12 @@ const NetworkGraph = () => {
             .force('collide', d3.forceCollide(10));
 
         const linkGroup = zoomLayer.append('g')
-            .attr('stroke', '#999')
-            .attr('stroke-opacity', 0.2)
+            .attr('stroke', '#4a5568')
+            .attr('stroke-opacity', 0.6)
             .selectAll('line')
             .data(links)
             .join('line')
-            .attr('stroke-width', 0.5);
+            .attr('stroke-width', 1.2);
 
         const nodeGroup = zoomLayer.append('g')
             .selectAll('g')
@@ -124,18 +157,28 @@ const NetworkGraph = () => {
             });
 
         nodeGroup.append('circle')
-            .attr('r', 10)
+            .attr('r', 12)
             .attr('fill', d => {
-                if (d.id === LOCAL_NODE || d.id === REMOTE_NODE) return 'gray';
-                return d.group === 'gateway' ? 'orange' : d.group === 'lan' ? '#ff6666' : 'purple';
-            });
+                if (d.id === LOCAL_NODE || d.id === REMOTE_NODE) return '#718096';
+                return d.group === 'gateway' ? '#ffd54f' : d.group === 'lan' ? '#ff8a65' : '#ba68c8';
+            })
+            .attr('stroke', d => {
+                if (d.id === LOCAL_NODE || d.id === REMOTE_NODE) return '#a0aec0';
+                return d.group === 'gateway' ? '#ffb300' : d.group === 'lan' ? '#ff5722' : '#9c27b0';
+            })
+            .attr('stroke-width', 2)
+            .style('cursor', 'pointer')
+            .style('filter', 'drop-shadow(0 2px 4px rgba(0,0,0,0.4))');
 
         nodeGroup.append('text')
             .text(d => d.id)
-            .attr('x', 12)
-            .attr('y', 4)
-            .attr('font-size', 12)
-            .attr('fill', '#000');
+            .attr('x', 15)
+            .attr('y', 5)
+            .attr('font-size', 11)
+            .attr('font-weight', '500')
+            .attr('fill', '#e0e0e0')
+            .style('pointer-events', 'none')
+            .style('text-shadow', '1px 1px 2px rgba(0,0,0,0.8)');
 
         linkPathsGroupRef.current = zoomLayer.append('g');
 
@@ -147,6 +190,9 @@ const NetworkGraph = () => {
                 .attr('y2', d => d.target.y);
 
             nodeGroup.attr('transform', d => `translate(${d.x},${d.y})`);
+            
+            // Update selected connection lines on every tick
+            updateSelectedConnectionLines();
         });
     };
 
@@ -169,104 +215,406 @@ const NetworkGraph = () => {
         });
 
     useEffect(() => {
-        const group = linkPathsGroupRef.current;
-        if (!group) return;
-        group.selectAll('*').remove();
-
-        if (!selectedConnection) return;
-
-        const { src_ip, dst_ip } = selectedConnection;
-        const gateway = GATEWAY_IP;
-        const points = [];
-        const nodeMap = new Map(nodesRef.current.map(n => [n.id, n]));
-
-        if (nodeMap.has(src_ip)) points.push(nodeMap.get(src_ip));
-        if (src_ip !== gateway && dst_ip !== gateway && nodeMap.has(gateway)) {
-            points.push(nodeMap.get(gateway));
-        }
-        if (nodeMap.has(dst_ip)) points.push(nodeMap.get(dst_ip));
-
-        for (let i = 0; i < points.length - 1; i++) {
-            group.append('line')
-                .attr('stroke', 'green')
-                .attr('stroke-width', 3)
-                .attr('x1', points[i].x)
-                .attr('y1', points[i].y)
-                .attr('x2', points[i + 1].x)
-                .attr('y2', points[i + 1].y);
-        }
+        updateSelectedConnectionLines();
     }, [selectedConnection]);
 
-    const selectedConnections = allDevices.find(dev => dev.ip === selectedNode?.id)?.connections || [];
+    // Re-render graph when switching back to graph view
+    useEffect(() => {
+        if (showGraph && allDevices.length > 0) {
+            // Small delay to ensure DOM is ready
+            const timeout = setTimeout(() => {
+                renderGraph(allDevices);
+            }, 100);
+            return () => clearTimeout(timeout);
+        }
+    }, [showGraph]);
+
+
+    // Calculate total connections for statistics
+    const totalConnections = allDevices.reduce((total, device) => {
+        return total + (device.connections ? device.connections.length : 0);
+    }, 0);
+
+    // Handle device selection from navigation bar
+    const handleDeviceSelect = (deviceIp) => {
+        // Find the node corresponding to this device IP
+        const targetNode = nodesRef.current.find(node => node.id === deviceIp);
+        if (targetNode) {
+            setSelectedNode(targetNode);
+            setSelectedConnection(null);
+        }
+    };
+
+    // Handle filter application
+    const handleFilterApplied = (filtered) => {
+        setFilteredDevices(filtered);
+        // Re-render graph with filtered data if we're in graph view
+        if (showGraph && filtered) {
+            renderGraph(filtered);
+        }
+    };
+
+    // Get devices to display (filtered or all)
+    const devicesToDisplay = filteredDevices || allDevices;
+    
+    // Get connections for the selected device from the displayed devices
+    const getSelectedConnections = () => {
+        if (!selectedNode?.id) return [];
+        const device = devicesToDisplay.find(dev => dev.ip === selectedNode.id);
+        return device?.connections || [];
+    };
+
+
+    // Handle tab changes, with special logic for devices and packets tabs
+    const handleTabChange = (tabId) => {
+        if (tabId === 'devices') {
+            // Toggle between graph and device view
+            setShowGraph(!showGraph);
+            // Keep the active tab as devices when in device view, otherwise clear it
+            setActiveTab(showGraph ? 'devices' : 'filters');
+            setShowPacketInspector(false);
+        } else if (tabId === 'packets') {
+            // Show packet inspector
+            setShowPacketInspector(true);
+            setActiveTab(tabId);
+        } else {
+            // For other tabs, set active tab and ensure graph view is shown
+            setActiveTab(tabId);
+            setShowGraph(true);
+            setShowPacketInspector(false);
+        }
+    };
+
+    // Helper function to get IP address class
+    const getIpClass = (ip) => {
+        if (ip === GATEWAY_IP) return styles.gatewayIp;
+        if (ip.startsWith('192.168.')) return styles.localIp;
+        return styles.remoteIp;
+    };
+
+    // Helper function to get protocol class
+    const getProtocolClass = (protocol) => {
+        switch (protocol.toLowerCase()) {
+            case 'tcp': return styles.protocolTcp;
+            case 'udp': return styles.protocolUdp;
+            default: return styles.protocolOther;
+        }
+    };
 
     return (
-        <div>
-            <div style={{ display: 'flex' }}>
-                <div style={{ flex: 1 }}>
-                    <h2>Network Topology</h2>
-                    <svg ref={svgRef} style={{ border: '1px solid #ccc' }} />
-                </div>
-                <div style={{ width: '300px', marginLeft: '20px' }}>
-                    <h3>Node Metadata</h3>
-                    {selectedNode ? (
-                        <div>
-                            <p><strong>IP:</strong> {selectedNode.id}</p>
-                            <p><strong>Group:</strong> {selectedNode.group}</p>
-                            {selectedNode.metadata && Object.entries(selectedNode.metadata).map(([k, v]) => (
-                                <p key={k}><strong>{k}:</strong> {v}</p>
-                            ))}
+        <div className={styles.container}>
+            <NavigationBar 
+                activeTab={activeTab} 
+                onTabChange={handleTabChange}
+                devices={allDevices}
+                totalConnections={totalConnections}
+                onDeviceSelect={handleDeviceSelect}
+                selectedDeviceIp={selectedNode?.id}
+                showGraph={showGraph}
+                onToggleView={null}
+                onFilterApplied={handleFilterApplied}
+                filteredDevices={filteredDevices}
+                setFilteredDevices={setFilteredDevices}
+            />
+            
+            {showGraph ? (
+                // Graph View
+                <>
+                    <div className={styles.layout}>
+                        <div className={styles.graphSection}>
+                            <h2 className={styles.heading}>Network Topology</h2>
+                            <svg ref={svgRef} className={styles.svg} />
                         </div>
-                    ) : <p>Click a node to view metadata</p>}
-                </div>
-            </div>
+                        <div className={styles.sidePanel}>
+                            <h3 className={styles.subheading}>Node Metadata</h3>
+                            {selectedNode ? (
+                                <div className={styles.metadataContainer}>
+                                    <div className={styles.metadataItem}>
+                                        <strong>IP:</strong> <span className={getIpClass(selectedNode.id)}>{selectedNode.id}</span>
+                                    </div>
+                                    <div className={styles.metadataItem}>
+                                        <strong>Group:</strong> {selectedNode.group}
+                                    </div>
+                                    {selectedNode.metadata && Object.entries(selectedNode.metadata).map(([k, v]) => (
+                                        <div key={k} className={styles.metadataItem}>
+                                            <strong>{k}:</strong> {v}
+                                        </div>
+                                    ))}
+                                </div>
+                            ) : (
+                                <div className={styles.noSelection}>Click a node to view metadata</div>
+                            )}
+                        </div>
+                    </div>
 
-            <div style={{ marginTop: '20px' }}>
-                <h3>Connections</h3>
-                <table style={{ width: '100%', borderCollapse: 'collapse' }}>
-                    <thead>
-                        <tr>
-                            <th style={cellStyle}>Src IP</th>
-                            <th style={cellStyle}>Dst IP</th>
-                            <th style={cellStyle}>Protocol</th>
-                            <th style={cellStyle}>Src Port</th>
-                            <th style={cellStyle}>Dst Port</th>
-                            <th style={cellStyle}>Timestamp</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        {selectedNode && selectedConnections.length > 0 ? (
-                            selectedConnections.map((conn, i) => (
-                                <tr
-                                    key={i}
-                                    style={{
-                                        cursor: 'pointer',
-                                        backgroundColor:
-                                            selectedConnection === conn ? '#d0f0d0' : i % 2 === 0 ? '#f9f9f9' : '#ffffff',
-                                    }}
-                                    onClick={() => setSelectedConnection(conn)}
-                                >
-                                    <td style={cellStyle}>{conn.src_ip}</td>
-                                    <td style={cellStyle}>{conn.dst_ip}</td>
-                                    <td style={cellStyle}>{conn.protocol}</td>
-                                    <td style={cellStyle}>{conn.src_port}</td>
-                                    <td style={cellStyle}>{conn.dst_port}</td>
-                                    <td style={cellStyle}>
-                                        {new Date(conn.timestamp * 1000).toLocaleString()}
-                                    </td>
+                    <div className={styles.connectionsSection}>
+                        <h3 className={styles.subheading}>Connections</h3>
+                        <table className={styles.table}>
+                            <thead className={styles.tableHeader}>
+                                <tr>
+                                    <th className={styles.headerCell}>Src IP</th>
+                                    <th className={styles.headerCell}>Dst IP</th>
+                                    <th className={styles.headerCell}>Protocol</th>
+                                    <th className={styles.headerCell}>Src Port</th>
+                                    <th className={styles.headerCell}>Dst Port</th>
+                                    <th className={styles.headerCell}>Timestamp</th>
                                 </tr>
-                            ))
-                        ) : (
-                            <tr>
-                                <td colSpan="6" style={{ ...cellStyle, textAlign: 'center', fontStyle: 'italic' }}>
-                                    {selectedNode
-                                        ? 'No connections found for this node.'
-                                        : 'Click a node to view its connections.'}
-                                </td>
-                            </tr>
-                        )}
-                    </tbody>
-                </table>
-            </div>
+                            </thead>
+                            <tbody>
+                                {selectedNode && getSelectedConnections().length > 0 ? (
+                                    getSelectedConnections().map((conn, i) => {
+                                        const isSelected = selectedConnection === conn;
+                                        const rowClass = `${styles.tableRow} ${
+                                            isSelected ? styles.tableRowSelected : 
+                                            i % 2 === 0 ? styles.tableRowEven : styles.tableRowOdd
+                                        }`;
+                                        
+                                        return (
+                                            <tr
+                                                key={i}
+                                                className={rowClass}
+                                                onClick={() => setSelectedConnection(conn)}
+                                            >
+                                                <td className={styles.cell}>
+                                                    <span className={getIpClass(conn.src_ip)}>{conn.src_ip}</span>
+                                                </td>
+                                                <td className={styles.cell}>
+                                                    <span className={getIpClass(conn.dst_ip)}>{conn.dst_ip}</span>
+                                                </td>
+                                                <td className={styles.cell}>
+                                                    <span className={`${styles.protocol} ${getProtocolClass(conn.protocol)}`}>
+                                                        {conn.protocol}
+                                                    </span>
+                                                </td>
+                                                <td className={styles.cell}>
+                                                    <span className={styles.port}>{conn.src_port}</span>
+                                                </td>
+                                                <td className={styles.cell}>
+                                                    <span className={styles.port}>{conn.dst_port}</span>
+                                                </td>
+                                                <td className={styles.cell}>
+                                                    <span className={styles.timestamp}>
+                                                        {new Date(conn.timestamp * 1000).toLocaleString()}
+                                                    </span>
+                                                </td>
+                                            </tr>
+                                        );
+                                    })
+                                ) : (
+                                    <tr className={styles.emptyRow}>
+                                        <td colSpan="6" className={styles.emptyCell}>
+                                            {selectedNode
+                                                ? 'No connections found for this node.'
+                                                : 'Click a node to view its connections.'}
+                                        </td>
+                                    </tr>
+                                )}
+                            </tbody>
+                        </table>
+                    </div>
+                </>
+            ) : (
+                // Device View - Replace graph with device list
+                <>
+                    <div className={styles.layout}>
+                        <div className={styles.graphSection}>
+                            <h2 className={styles.heading}>Network Devices</h2>
+                            <div className={styles.deviceViewContainer}>
+                                <div className={styles.deviceStats}>
+                                    <div className={styles.statItem}>
+                                        <span className={styles.statLabel}>Total Devices:</span>
+                                        <span className={styles.statValue}>{allDevices ? allDevices.length : 0}</span>
+                                    </div>
+                                    <div className={styles.statItem}>
+                                        <span className={styles.statLabel}>Active Connections:</span>
+                                        <span className={styles.statValue}>{totalConnections || 0}</span>
+                                    </div>
+                                </div>
+                                
+                                <div className={styles.deviceList}>
+                                    {allDevices && allDevices.length > 0 ? (
+                                        <div className={styles.deviceGrid}>
+                                            {allDevices.map((device, index) => {
+                                                const isLocal = device.ip.startsWith('192.168.');
+                                                const isGateway = device.ip === '127.0.0.1';
+                                                const connectionCount = device.connections ? device.connections.length : 0;
+                                                const isSelected = selectedNode?.id === device.ip;
+                                                
+                                                return (
+                                                    <div 
+                                                        key={device.ip} 
+                                                        className={`${styles.deviceCard} ${isSelected ? styles.deviceCardSelected : ''}`}
+                                                        onClick={() => handleDeviceSelect(device.ip)}
+                                                    >
+                                                        <div className={styles.deviceHeader}>
+                                                            <div className={`${styles.deviceStatus} ${
+                                                                isGateway ? styles.statusGateway : 
+                                                                isLocal ? styles.statusLocal : styles.statusRemote
+                                                            }`}></div>
+                                                            <span className={styles.deviceIp}>{device.ip}</span>
+                                                            <span className={styles.deviceType}>
+                                                                {isGateway ? 'Gateway' : isLocal ? 'Local' : 'Remote'}
+                                                            </span>
+                                                        </div>
+                                                        
+                                                        <div className={styles.deviceInfo}>
+                                                            <div className={styles.deviceStat}>
+                                                                <span className={styles.deviceStatLabel}>Connections:</span>
+                                                                <span className={styles.deviceStatValue}>{connectionCount}</span>
+                                                            </div>
+                                                            
+                                                            {device.metadata && Object.keys(device.metadata).length > 0 && (
+                                                                <div className={styles.deviceMetadata}>
+                                                                    {Object.entries(device.metadata).slice(0, 2).map(([key, value]) => (
+                                                                        <div key={key} className={styles.metadataRow}>
+                                                                            <span className={styles.metadataKey}>{key}:</span>
+                                                                            <span className={styles.metadataValue}>{value}</span>
+                                                                        </div>
+                                                                    ))}
+                                                                    {Object.keys(device.metadata).length > 2 && (
+                                                                        <div className={styles.metadataMore}>
+                                                                            +{Object.keys(device.metadata).length - 2} more
+                                                                        </div>
+                                                                    )}
+                                                                </div>
+                                                            )}
+                                                            
+                                                            {device.connections && device.connections.length > 0 && (
+                                                                <div className={styles.recentConnections}>
+                                                                    <div className={styles.connectionsHeader}>Recent Activity:</div>
+                                                                    {device.connections.slice(0, 3).map((conn, i) => (
+                                                                        <div key={i} className={styles.connectionItem}>
+                                                                            <span className={`${styles.protocolBadge} ${
+                                                                                conn.protocol.toLowerCase() === 'tcp' ? styles.protocolTcp :
+                                                                                conn.protocol.toLowerCase() === 'udp' ? styles.protocolUdp :
+                                                                                styles.protocolOther
+                                                                            }`}>
+                                                                                {conn.protocol}
+                                                                            </span>
+                                                                            <span className={styles.connectionDetail}>
+                                                                                {conn.dst_ip}:{conn.dst_port}
+                                                                            </span>
+                                                                        </div>
+                                                                    ))}
+                                                                    {device.connections.length > 3 && (
+                                                                        <div className={styles.connectionsMore}>
+                                                                            +{device.connections.length - 3} more connections
+                                                                        </div>
+                                                                    )}
+                                                                </div>
+                                                            )}
+                                                        </div>
+                                                    </div>
+                                                );
+                                            })}
+                                        </div>
+                                    ) : (
+                                        <div className={styles.noDevices}>
+                                            <div className={styles.noDevicesIcon}>📱</div>
+                                            <div className={styles.noDevicesText}>No devices found</div>
+                                            <div className={styles.noDevicesSubtext}>Devices will appear here once network data is loaded</div>
+                                        </div>
+                                    )}
+                                </div>
+                            </div>
+                        </div>
+                        <div className={styles.sidePanel}>
+                            <h3 className={styles.subheading}>Device Details</h3>
+                            {selectedNode ? (
+                                <div className={styles.metadataContainer}>
+                                    <div className={styles.metadataItem}>
+                                        <strong>IP:</strong> <span className={getIpClass(selectedNode.id)}>{selectedNode.id}</span>
+                                    </div>
+                                    <div className={styles.metadataItem}>
+                                        <strong>Group:</strong> {selectedNode.group}
+                                    </div>
+                                    {selectedNode.metadata && Object.entries(selectedNode.metadata).map(([k, v]) => (
+                                        <div key={k} className={styles.metadataItem}>
+                                            <strong>{k}:</strong> {v}
+                                        </div>
+                                    ))}
+                                </div>
+                            ) : (
+                                <div className={styles.noSelection}>Click a device to view details</div>
+                            )}
+                        </div>
+                    </div>
+
+                    <div className={styles.connectionsSection}>
+                        <h3 className={styles.subheading}>Connections</h3>
+                        <table className={styles.table}>
+                            <thead className={styles.tableHeader}>
+                                <tr>
+                                    <th className={styles.headerCell}>Src IP</th>
+                                    <th className={styles.headerCell}>Dst IP</th>
+                                    <th className={styles.headerCell}>Protocol</th>
+                                    <th className={styles.headerCell}>Src Port</th>
+                                    <th className={styles.headerCell}>Dst Port</th>
+                                    <th className={styles.headerCell}>Timestamp</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {selectedNode && getSelectedConnections().length > 0 ? (
+                                    getSelectedConnections().map((conn, i) => {
+                                        const isSelected = selectedConnection === conn;
+                                        const rowClass = `${styles.tableRow} ${
+                                            isSelected ? styles.tableRowSelected : 
+                                            i % 2 === 0 ? styles.tableRowEven : styles.tableRowOdd
+                                        }`;
+                                        
+                                        return (
+                                            <tr
+                                                key={i}
+                                                className={rowClass}
+                                                onClick={() => setSelectedConnection(conn)}
+                                            >
+                                                <td className={styles.cell}>
+                                                    <span className={getIpClass(conn.src_ip)}>{conn.src_ip}</span>
+                                                </td>
+                                                <td className={styles.cell}>
+                                                    <span className={getIpClass(conn.dst_ip)}>{conn.dst_ip}</span>
+                                                </td>
+                                                <td className={styles.cell}>
+                                                    <span className={`${styles.protocol} ${getProtocolClass(conn.protocol)}`}>
+                                                        {conn.protocol}
+                                                    </span>
+                                                </td>
+                                                <td className={styles.cell}>
+                                                    <span className={styles.port}>{conn.src_port}</span>
+                                                </td>
+                                                <td className={styles.cell}>
+                                                    <span className={styles.port}>{conn.dst_port}</span>
+                                                </td>
+                                                <td className={styles.cell}>
+                                                    <span className={styles.timestamp}>
+                                                        {new Date(conn.timestamp * 1000).toLocaleString()}
+                                                    </span>
+                                                </td>
+                                            </tr>
+                                        );
+                                    })
+                                ) : (
+                                    <tr className={styles.emptyRow}>
+                                        <td colSpan="6" className={styles.emptyCell}>
+                                            {selectedNode
+                                                ? 'No connections found for this device.'
+                                                : 'Click a device to view its connections.'}
+                                        </td>
+                                    </tr>
+                                )}
+                            </tbody>
+                        </table>
+                    </div>
+                </>
+            )}
+            
+            {/* Packet Inspector Modal */}
+            {showPacketInspector && (
+                <PacketInspector 
+                    selectedConnection={selectedConnection}
+                    onClose={() => setShowPacketInspector(false)}
+                />
+            )}
         </div>
     );
 };

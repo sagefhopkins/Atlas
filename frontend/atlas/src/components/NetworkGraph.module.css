@@ -1,0 +1,551 @@
+/* Dark theme styles for Network Graph */
+.container {
+  background-color: #0f0f23;
+  color: #e0e0e0;
+  min-height: 100vh;
+  padding: 20px;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen',
+    'Ubuntu', 'Cantarell', 'Fira Sans', 'Droid Sans', 'Helvetica Neue',
+    sans-serif;
+}
+
+.layout {
+  display: flex;
+  gap: 20px;
+  margin-bottom: 20px;
+}
+
+.graphSection {
+  flex: 1;
+  background-color: #1a1a2e;
+  border-radius: 12px;
+  padding: 24px;
+  border: 1px solid #2d2d4a;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+}
+
+.sidePanel {
+  width: 320px;
+  background-color: #1a1a2e;
+  border-radius: 12px;
+  padding: 24px;
+  border: 1px solid #2d2d4a;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+}
+
+.heading {
+  margin: 0 0 20px 0;
+  color: #ffffff;
+  font-size: 24px;
+  font-weight: 600;
+  text-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
+}
+
+.subheading {
+  margin: 0 0 16px 0;
+  color: #b8b8d1;
+  font-size: 18px;
+  font-weight: 500;
+}
+
+.svg {
+  border: 2px solid #2d2d4a;
+  border-radius: 8px;
+  background: linear-gradient(135deg, #0f0f23 0%, #1a1a2e 100%);
+  box-shadow: inset 0 2px 8px rgba(0, 0, 0, 0.2);
+}
+
+.metadataContainer {
+  background-color: #16213e;
+  border-radius: 8px;
+  padding: 16px;
+  border: 1px solid #2d4a6b;
+}
+
+.metadataItem {
+  margin: 8px 0;
+  color: #e0e0e0;
+  line-height: 1.4;
+}
+
+.metadataItem strong {
+  color: #64b5f6;
+  font-weight: 600;
+}
+
+.noSelection {
+  color: #8e8e93;
+  font-style: italic;
+  text-align: center;
+  padding: 20px;
+}
+
+.connectionsSection {
+  background-color: #1a1a2e;
+  border-radius: 12px;
+  padding: 24px;
+  border: 1px solid #2d2d4a;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+}
+
+.table {
+  width: 100%;
+  border-collapse: collapse;
+  margin-top: 16px;
+  background-color: #16213e;
+  border-radius: 8px;
+  overflow: hidden;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.2);
+}
+
+.tableHeader {
+  background: linear-gradient(135deg, #2d4a6b 0%, #1e3a5f 100%);
+}
+
+.headerCell {
+  padding: 16px 12px;
+  text-align: left;
+  color: #ffffff;
+  font-weight: 600;
+  font-size: 14px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  border-bottom: 2px solid #3d5a7b;
+}
+
+.tableRow {
+  cursor: pointer;
+  transition: all 0.2s ease;
+  border-bottom: 1px solid #2d2d4a;
+}
+
+.tableRow:hover {
+  background-color: #1e2a4a !important;
+  transform: translateX(2px);
+}
+
+.tableRowEven {
+  background-color: #141428;
+}
+
+.tableRowOdd {
+  background-color: #16213e;
+}
+
+.tableRowSelected {
+  background: linear-gradient(135deg, #2d5a3d 0%, #1e4a2e 100%) !important;
+  border-left: 4px solid #4caf50;
+}
+
+.cell {
+  padding: 12px;
+  color: #e0e0e0;
+  font-size: 13px;
+  font-family: 'SF Mono', 'Monaco', 'Inconsolata', 'Roboto Mono', 'Courier New', monospace;
+}
+
+.emptyRow {
+  text-align: center;
+  font-style: italic;
+  color: #8e8e93;
+  background-color: #141428 !important;
+}
+
+.emptyCell {
+  padding: 24px;
+  color: #8e8e93;
+  font-style: italic;
+}
+
+/* IP address styling */
+.ipAddress {
+  color: #81c784;
+  font-weight: 500;
+}
+
+.localIp {
+  color: #ff8a65;
+}
+
+.remoteIp {
+  color: #ba68c8;
+}
+
+.gatewayIp {
+  color: #ffd54f;
+}
+
+/* Protocol badges */
+.protocol {
+  display: inline-block;
+  padding: 4px 8px;
+  border-radius: 4px;
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+}
+
+.protocolTcp {
+  background-color: rgba(76, 175, 80, 0.2);
+  color: #81c784;
+  border: 1px solid rgba(76, 175, 80, 0.3);
+}
+
+.protocolUdp {
+  background-color: rgba(33, 150, 243, 0.2);
+  color: #64b5f6;
+  border: 1px solid rgba(33, 150, 243, 0.3);
+}
+
+.protocolOther {
+  background-color: rgba(156, 39, 176, 0.2);
+  color: #ba68c8;
+  border: 1px solid rgba(156, 39, 176, 0.3);
+}
+
+/* Port styling */
+.port {
+  color: #ffb74d;
+  font-weight: 500;
+}
+
+/* Timestamp styling */
+.timestamp {
+  color: #90a4ae;
+  font-size: 12px;
+}
+
+/* Scrollbar styling for webkit browsers */
+.connectionsSection::-webkit-scrollbar {
+  width: 8px;
+}
+
+.connectionsSection::-webkit-scrollbar-track {
+  background: #0f0f23;
+  border-radius: 4px;
+}
+
+.connectionsSection::-webkit-scrollbar-thumb {
+  background: #2d2d4a;
+  border-radius: 4px;
+}
+
+.connectionsSection::-webkit-scrollbar-thumb:hover {
+  background: #3d3d5a;
+}
+
+/* Animation for loading states */
+@keyframes pulse {
+  0%, 100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.5;
+  }
+}
+
+.loading {
+  animation: pulse 2s infinite;
+}
+
+/* Device View Styles */
+.deviceViewContainer {
+  padding: 20px;
+  height: 100%;
+  overflow-y: auto;
+}
+
+.deviceList {
+  margin-top: 20px;
+}
+
+.deviceStats {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 16px;
+  padding: 16px;
+  background-color: rgba(22, 33, 62, 0.6);
+  border-radius: 8px;
+  border: 1px solid #2d4a6b;
+  margin-bottom: 20px;
+}
+
+.statItem {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.statLabel {
+  color: #b8b8d1;
+  font-size: 14px;
+  font-weight: 500;
+}
+
+.statValue {
+  color: #64b5f6;
+  font-size: 16px;
+  font-weight: 600;
+  font-family: 'SF Mono', 'Monaco', 'Inconsolata', 'Roboto Mono', 'Courier New', monospace;
+}
+
+.deviceGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+  gap: 20px;
+  max-height: 500px;
+  overflow-y: auto;
+  padding: 8px;
+  margin: -4px;
+}
+
+.deviceCard {
+  background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
+  border: 1px solid #2d4a6b;
+  border-radius: 12px;
+  padding: 16px;
+  transition: all 0.2s ease;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.1);
+  cursor: pointer;
+  margin: 4px;
+}
+
+.deviceCard:hover {
+  transform: translateY(-4px);
+  border-color: #64b5f6;
+  box-shadow: 0 12px 32px rgba(100, 181, 246, 0.15);
+}
+
+.deviceCardSelected {
+  background: linear-gradient(135deg, #2d5a3d 0%, #1e4a2e 100%);
+  border-color: #4caf50;
+  box-shadow: 0 8px 24px rgba(76, 175, 80, 0.2);
+}
+
+.deviceCardSelected:hover {
+  background: linear-gradient(135deg, #3d6a4d 0%, #2e5a3e 100%);
+  border-color: #66bb6a;
+  box-shadow: 0 12px 32px rgba(76, 175, 80, 0.3);
+}
+
+.deviceHeader {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 12px;
+}
+
+.deviceStatus {
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  box-shadow: 0 0 8px currentColor;
+}
+
+.statusGateway {
+  background-color: #ffd54f;
+}
+
+.statusLocal {
+  background-color: #ff8a65;
+}
+
+.statusRemote {
+  background-color: #ba68c8;
+}
+
+.deviceIp {
+  color: #e0e0e0;
+  font-size: 14px;
+  font-weight: 600;
+  font-family: 'SF Mono', 'Monaco', 'Inconsolata', 'Roboto Mono', 'Courier New', monospace;
+}
+
+.deviceType {
+  color: #b8b8d1;
+  font-size: 12px;
+  font-weight: 500;
+  text-transform: uppercase;
+  background-color: rgba(184, 184, 209, 0.1);
+  padding: 2px 8px;
+  border-radius: 12px;
+  margin-left: auto;
+}
+
+.deviceInfo {
+  space-y: 8px;
+}
+
+.deviceStat {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 8px;
+}
+
+.deviceStatLabel {
+  color: #b8b8d1;
+  font-size: 13px;
+}
+
+.deviceStatValue {
+  color: #64b5f6;
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.deviceMetadata {
+  background-color: rgba(22, 33, 62, 0.4);
+  border-radius: 6px;
+  padding: 8px;
+  margin-bottom: 8px;
+}
+
+.metadataRow {
+  display: flex;
+  justify-content: space-between;
+  margin-bottom: 4px;
+  font-size: 12px;
+}
+
+.metadataRow:last-child {
+  margin-bottom: 0;
+}
+
+.metadataKey {
+  color: #b8b8d1;
+  font-weight: 500;
+}
+
+.metadataValue {
+  color: #e0e0e0;
+  font-family: 'SF Mono', 'Monaco', 'Inconsolata', 'Roboto Mono', 'Courier New', monospace;
+}
+
+.metadataMore {
+  color: #8e8e93;
+  font-size: 11px;
+  font-style: italic;
+  text-align: center;
+  margin-top: 4px;
+}
+
+.recentConnections {
+  background-color: rgba(22, 33, 62, 0.4);
+  border-radius: 6px;
+  padding: 8px;
+}
+
+.connectionsHeader {
+  color: #b8b8d1;
+  font-size: 12px;
+  font-weight: 600;
+  margin-bottom: 6px;
+}
+
+.connectionItem {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 4px;
+}
+
+.connectionItem:last-child {
+  margin-bottom: 0;
+}
+
+.protocolBadge {
+  display: inline-block;
+  padding: 2px 6px;
+  border-radius: 3px;
+  font-size: 10px;
+  font-weight: 600;
+  text-transform: uppercase;
+}
+
+.protocolBadge.protocolTcp {
+  background-color: rgba(76, 175, 80, 0.2);
+  color: #81c784;
+  border: 1px solid rgba(76, 175, 80, 0.3);
+}
+
+.protocolBadge.protocolUdp {
+  background-color: rgba(33, 150, 243, 0.2);
+  color: #64b5f6;
+  border: 1px solid rgba(33, 150, 243, 0.3);
+}
+
+.protocolBadge.protocolOther {
+  background-color: rgba(156, 39, 176, 0.2);
+  color: #ba68c8;
+  border: 1px solid rgba(156, 39, 176, 0.3);
+}
+
+.connectionDetail {
+  color: #e0e0e0;
+  font-size: 11px;
+  font-family: 'SF Mono', 'Monaco', 'Inconsolata', 'Roboto Mono', 'Courier New', monospace;
+}
+
+.connectionsMore {
+  color: #8e8e93;
+  font-size: 10px;
+  font-style: italic;
+  text-align: center;
+  margin-top: 4px;
+}
+
+.noDevices {
+  text-align: center;
+  padding: 40px 20px;
+  color: #8e8e93;
+}
+
+.noDevicesIcon {
+  font-size: 48px;
+  margin-bottom: 16px;
+  opacity: 0.5;
+}
+
+.noDevicesText {
+  font-size: 18px;
+  font-weight: 600;
+  margin-bottom: 8px;
+}
+
+.noDevicesSubtext {
+  font-size: 14px;
+  opacity: 0.7;
+}
+
+/* Responsive adjustments */
+@media (max-width: 1200px) {
+  .layout {
+    flex-direction: column;
+  }
+  
+  .sidePanel {
+    width: 100%;
+  }
+}
+
+@media (max-width: 768px) {
+  .container {
+    padding: 16px;
+  }
+  
+  .graphSection,
+  .sidePanel,
+  .connectionsSection {
+    padding: 16px;
+  }
+  
+  .table {
+    font-size: 12px;
+  }
+  
+  .headerCell,
+  .cell {
+    padding: 8px;
+  }
+}
