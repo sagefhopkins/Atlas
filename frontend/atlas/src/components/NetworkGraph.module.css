@@ -1,4 +1,3 @@
-/* Dark theme styles for Network Graph */
 .container {
   background-color: #0f0f23;
   color: #e0e0e0;
@@ -157,7 +156,6 @@
   font-style: italic;
 }
 
-/* IP address styling */
 .ipAddress {
   color: #81c784;
   font-weight: 500;
@@ -175,7 +173,6 @@
   color: #ffd54f;
 }
 
-/* Protocol badges */
 .protocol {
   display: inline-block;
   padding: 4px 8px;
@@ -203,19 +200,16 @@
   border: 1px solid rgba(156, 39, 176, 0.3);
 }
 
-/* Port styling */
 .port {
   color: #ffb74d;
   font-weight: 500;
 }
 
-/* Timestamp styling */
 .timestamp {
   color: #90a4ae;
   font-size: 12px;
 }
 
-/* Scrollbar styling for webkit browsers */
 .connectionsSection::-webkit-scrollbar {
   width: 8px;
 }
@@ -234,7 +228,6 @@
   background: #3d3d5a;
 }
 
-/* Animation for loading states */
 @keyframes pulse {
   0%, 100% {
     opacity: 1;
@@ -248,7 +241,6 @@
   animation: pulse 2s infinite;
 }
 
-/* Device View Styles */
 .deviceViewContainer {
   padding: 20px;
   height: 100%;
@@ -518,7 +510,6 @@
   opacity: 0.7;
 }
 
-/* Responsive adjustments */
 @media (max-width: 1200px) {
   .layout {
     flex-direction: column;

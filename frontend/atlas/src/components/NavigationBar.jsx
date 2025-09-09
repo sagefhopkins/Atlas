@@ -20,7 +20,7 @@ const NavigationBar = ({ activeTab, onTabChange, devices, totalConnections, onDe
 
     const tabs = [
         { id: 'filters', label: 'Wireshark Filters', icon: '🔍' },
-        { id: 'packets', label: 'Packet Inspector', icon: '📦' },
+        //{ id: 'packets', label: 'Packet Inspector', icon: '📦' },
         { id: 'settings', label: 'Settings', icon: '⚙️' },
         { id: 'devices', label: showGraph ? 'Device Tab' : 'Graph Tab', icon: showGraph ? '📱' : '🕸️' }
     ];
