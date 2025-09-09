@@ -5,6 +5,8 @@ How to run Atlas:
 2. start the backend:
 
 
-```sudo uvicorn api:app --host "0.0.0.0" --port 8000`
+```
+sudo uvicorn api:app --host "0.0.0.0" --port 8000
+```
 
 3. start front end `npm start`
