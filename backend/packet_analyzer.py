@@ -25,10 +25,10 @@ def parse_ethernet_header(packet) -> Dict[str, Any]:
     
     eth = packet[Ether]
     return {
-        "src_mac": eth.src,
-        "dst_mac": eth.dst,
-        "type": eth.type,
-        "type_name": eth.sprintf("%Ether.type%")
+        "src_mac": str(eth.src),
+        "dst_mac": str(eth.dst),
+        "type": int(eth.type),
+        "type_name": str(eth.sprintf("%Ether.type%"))
     }
 
 
@@ -38,23 +38,23 @@ def parse_ip_header(packet) -> Dict[str, Any]:
     
     ip = packet[IP]
     return {
-        "version": ip.version,
-        "header_length": ip.ihl * 4,
-        "type_of_service": ip.tos,
-        "total_length": ip.len,
-        "identification": ip.id,
+        "version": int(ip.version) if ip.version is not None else 4,
+        "header_length": int(ip.ihl * 4) if ip.ihl is not None else 20,
+        "type_of_service": int(ip.tos) if ip.tos is not None else 0,
+        "total_length": int(ip.len) if ip.len is not None else None,
+        "identification": int(ip.id) if ip.id is not None else 0,
         "flags": {
-            "dont_fragment": bool(ip.flags & 2),
-            "more_fragments": bool(ip.flags & 1),
-            "reserved": bool(ip.flags & 4)
+            "dont_fragment": bool(ip.flags & 2) if ip.flags is not None else False,
+            "more_fragments": bool(ip.flags & 1) if ip.flags is not None else False,
+            "reserved": bool(ip.flags & 4) if ip.flags is not None else False
         },
-        "fragment_offset": ip.frag,
-        "ttl": ip.ttl,
-        "protocol": ip.proto,
-        "protocol_name": ip.sprintf("%IP.proto%"),
-        "checksum": ip.chksum,
-        "src_ip": ip.src,
-        "dst_ip": ip.dst,
+        "fragment_offset": int(ip.frag) if ip.frag is not None else 0,
+        "ttl": int(ip.ttl) if ip.ttl is not None else 64,
+        "protocol": int(ip.proto) if ip.proto is not None else 0,
+        "protocol_name": str(ip.sprintf("%IP.proto%")) if ip.proto is not None else "Unknown",
+        "checksum": int(ip.chksum) if ip.chksum is not None else None,
+        "src_ip": str(ip.src) if ip.src is not None else "0.0.0.0",
+        "dst_ip": str(ip.dst) if ip.dst is not None else "0.0.0.0",
         "options": str(ip.options) if ip.options else None
     }
 
@@ -65,26 +65,26 @@ def parse_tcp_header(packet) -> Dict[str, Any]:
     
     tcp = packet[TCP]
     flags = {
-        "urg": bool(tcp.flags & 0x20),
-        "ack": bool(tcp.flags & 0x10),
-        "psh": bool(tcp.flags & 0x08),
-        "rst": bool(tcp.flags & 0x04),
-        "syn": bool(tcp.flags & 0x02),
-        "fin": bool(tcp.flags & 0x01)
+        "urg": bool(tcp.flags & 0x20) if tcp.flags is not None else False,
+        "ack": bool(tcp.flags & 0x10) if tcp.flags is not None else False,
+        "psh": bool(tcp.flags & 0x08) if tcp.flags is not None else False,
+        "rst": bool(tcp.flags & 0x04) if tcp.flags is not None else False,
+        "syn": bool(tcp.flags & 0x02) if tcp.flags is not None else False,
+        "fin": bool(tcp.flags & 0x01) if tcp.flags is not None else False
     }
     
     return {
-        "src_port": tcp.sport,
-        "dst_port": tcp.dport,
-        "sequence_number": tcp.seq,
-        "acknowledgment_number": tcp.ack,
-        "data_offset": tcp.dataofs,
-        "reserved": tcp.reserved,
+        "src_port": int(tcp.sport) if tcp.sport is not None else 0,
+        "dst_port": int(tcp.dport) if tcp.dport is not None else 0,
+        "sequence_number": int(tcp.seq) if tcp.seq is not None else 0,
+        "acknowledgment_number": int(tcp.ack) if tcp.ack is not None else 0,
+        "data_offset": int(tcp.dataofs) if tcp.dataofs is not None else 20,
+        "reserved": int(tcp.reserved) if tcp.reserved is not None else 0,
         "flags": flags,
-        "flags_raw": tcp.flags,
-        "window_size": tcp.window,
-        "checksum": tcp.chksum,
-        "urgent_pointer": tcp.urgptr,
+        "flags_raw": int(tcp.flags) if tcp.flags is not None else 0,
+        "window_size": int(tcp.window) if tcp.window is not None else 0,
+        "checksum": int(tcp.chksum) if tcp.chksum is not None else None,
+        "urgent_pointer": int(tcp.urgptr) if tcp.urgptr is not None else 0,
         "options": str(tcp.options) if tcp.options else None
     }
 
@@ -95,10 +95,10 @@ def parse_udp_header(packet) -> Dict[str, Any]:
     
     udp = packet[UDP]
     return {
-        "src_port": udp.sport,
-        "dst_port": udp.dport,
-        "length": udp.len,
-        "checksum": udp.chksum
+        "src_port": int(udp.sport) if udp.sport is not None else 0,
+        "dst_port": int(udp.dport) if udp.dport is not None else 0,
+        "length": int(udp.len) if udp.len is not None else None,
+        "checksum": int(udp.chksum) if udp.chksum is not None else None
     }
 
 
@@ -108,12 +108,12 @@ def parse_icmp_header(packet) -> Dict[str, Any]:
     
     icmp = packet[ICMP]
     return {
-        "type": icmp.type,
-        "type_name": icmp.sprintf("%ICMP.type%"),
-        "code": icmp.code,
-        "checksum": icmp.chksum,
-        "id": icmp.id if hasattr(icmp, 'id') else None,
-        "sequence": icmp.seq if hasattr(icmp, 'seq') else None
+        "type": int(icmp.type),
+        "type_name": str(icmp.sprintf("%ICMP.type%")),
+        "code": int(icmp.code),
+        "checksum": int(icmp.chksum) if icmp.chksum else None,
+        "id": int(icmp.id) if hasattr(icmp, 'id') and icmp.id else None,
+        "sequence": int(icmp.seq) if hasattr(icmp, 'seq') and icmp.seq else None
     }
 
 
@@ -125,44 +125,52 @@ def parse_dns_data(packet) -> Dict[str, Any]:
     
     queries = []
     if dns.qd:
-        for i in range(dns.qdcount):
+        for i in range(int(dns.qdcount)):
             if i < len(dns.qd):
                 q = dns.qd[i]
                 queries.append({
                     "name": q.qname.decode() if isinstance(q.qname, bytes) else str(q.qname),
-                    "type": q.qtype,
-                    "type_name": q.sprintf("%DNSQR.qtype%"),
-                    "class": q.qclass
+                    "type": int(q.qtype),
+                    "type_name": str(q.sprintf("%DNSQR.qtype%")),
+                    "class": int(q.qclass)
                 })
     
     answers = []
     if dns.an:
-        for i in range(dns.ancount):
+        for i in range(int(dns.ancount)):
             if i < len(dns.an):
                 a = dns.an[i]
+                try:
+                    if hasattr(a, 'rdata') and a.rdata is not None:
+                        data_str = str(a.rdata)
+                    else:
+                        data_str = "N/A"
+                except Exception:
+                    data_str = "[parsing error]"
+                
                 answers.append({
                     "name": a.rrname.decode() if isinstance(a.rrname, bytes) else str(a.rrname),
-                    "type": a.type,
-                    "type_name": a.sprintf("%DNSRR.type%"),
-                    "class": a.rclass,
-                    "ttl": a.ttl,
-                    "data": str(a.rdata)
+                    "type": int(a.type),
+                    "type_name": str(a.sprintf("%DNSRR.type%")),
+                    "class": int(a.rclass),
+                    "ttl": int(a.ttl),
+                    "data": data_str
                 })
     
     return {
-        "id": dns.id,
+        "id": int(dns.id),
         "is_response": bool(dns.qr),
-        "opcode": dns.opcode,
+        "opcode": int(dns.opcode),
         "authoritative": bool(dns.aa),
         "truncated": bool(dns.tc),
         "recursion_desired": bool(dns.rd),
         "recursion_available": bool(dns.ra),
-        "response_code": dns.rcode,
-        "response_code_name": dns.sprintf("%DNS.rcode%"),
-        "question_count": dns.qdcount,
-        "answer_count": dns.ancount,
-        "authority_count": dns.nscount,
-        "additional_count": dns.arcount,
+        "response_code": int(dns.rcode),
+        "response_code_name": str(dns.sprintf("%DNS.rcode%")),
+        "question_count": int(dns.qdcount),
+        "answer_count": int(dns.ancount),
+        "authority_count": int(dns.nscount),
+        "additional_count": int(dns.arcount),
         "queries": queries,
         "answers": answers
     }
@@ -472,38 +480,103 @@ def get_security_analysis(packet) -> Dict[str, Any]:
     return security_info
 
 
+def make_json_serializable(obj) -> Any:
+    if isinstance(obj, dict):
+        return {key: make_json_serializable(value) for key, value in obj.items()}
+    elif isinstance(obj, (list, tuple)):
+        return [make_json_serializable(item) for item in obj]
+    elif hasattr(obj, '__int__'):  # Scapy field types like FlagValue
+        return int(obj)
+    elif hasattr(obj, '__str__') and not isinstance(obj, (str, int, float, bool, type(None))):
+        return str(obj)
+    else:
+        return obj
+
 def create_packet_record(packet) -> 'PacketRecord':
     from keydb import PacketRecord
     
-    packet_id = generate_packet_id(packet)
-    raw_data = extract_raw_data(packet)
-    
-    # Parse all headers
-    headers = {
-        "ethernet": parse_ethernet_header(packet),
-        "ip": parse_ip_header(packet),
-        "tcp": parse_tcp_header(packet),
-        "udp": parse_udp_header(packet),
-        "icmp": parse_icmp_header(packet),
-        "dns": parse_dns_data(packet),
-        "http": parse_http_data(packet)
-    }
-    
-    # Remove empty headers
-    headers = {k: v for k, v in headers.items() if v}
-    
-    # Comprehensive analysis
-    analysis = analyze_packet_comprehensive(packet)
-    analysis["summary"] = get_packet_summary(packet)
-    analysis["security"] = get_security_analysis(packet)
-    analysis["datetime"] = datetime.fromtimestamp(time.time()).isoformat()
-    
-    return PacketRecord(
-        packet_id=packet_id,
-        raw_data=raw_data,
-        headers=headers,
-        analysis=analysis
-    )
+    try:
+        packet_id = generate_packet_id(packet)
+        raw_data = extract_raw_data(packet)
+        
+        headers = {}
+        try:
+            headers["ethernet"] = parse_ethernet_header(packet)
+        except Exception as e:
+            print(f"Error parsing ethernet header: {e}")
+            
+        try:
+            headers["ip"] = parse_ip_header(packet)
+        except Exception as e:
+            print(f"Error parsing IP header: {e}")
+            
+        try:
+            headers["tcp"] = parse_tcp_header(packet)
+        except Exception as e:
+            print(f"Error parsing TCP header: {e}")
+            
+        try:
+            headers["udp"] = parse_udp_header(packet)
+        except Exception as e:
+            print(f"Error parsing UDP header: {e}")
+            
+        try:
+            headers["icmp"] = parse_icmp_header(packet)
+        except Exception as e:
+            print(f"Error parsing ICMP header: {e}")
+            
+        try:
+            headers["dns"] = parse_dns_data(packet)
+        except Exception as e:
+            print(f"Error parsing DNS data: {e}")
+            
+        try:
+            headers["http"] = parse_http_data(packet)
+        except Exception as e:
+            print(f"Error parsing HTTP data: {e}")
+        
+        headers = {k: v for k, v in headers.items() if v}
+        
+        try:
+            analysis = analyze_packet_comprehensive(packet)
+            analysis["summary"] = get_packet_summary(packet)
+            analysis["security"] = get_security_analysis(packet)
+            analysis["datetime"] = datetime.fromtimestamp(time.time()).isoformat()
+        except Exception as e:
+            print(f"Error in packet analysis: {e}")
+            analysis = {
+                "packet_type": "UNKNOWN",
+                "size": len(packet),
+                "timestamp": time.time(),
+                "summary": f"Packet parsing error: {e}",
+                "datetime": datetime.fromtimestamp(time.time()).isoformat()
+            }
+        
+        headers = make_json_serializable(headers)
+        analysis = make_json_serializable(analysis)
+        
+        return PacketRecord(
+            packet_id=packet_id,
+            raw_data=raw_data,
+            headers=headers,
+            analysis=analysis
+        )
+        
+    except Exception as e:
+        print(f"Critical error creating packet record: {e}")
+        packet_id = hashlib.sha256(f"{time.time()}".encode()).hexdigest()[:16]
+        return PacketRecord(
+            packet_id=packet_id,
+            raw_data="",
+            headers={},
+            analysis={
+                "packet_type": "ERROR",
+                "size": 0,
+                "timestamp": time.time(),
+                "summary": f"Packet processing failed: {e}",
+                "datetime": datetime.fromtimestamp(time.time()).isoformat()
+            }
+        )
 
 
 def format_hex_dump(hex_data: str, bytes_per_line=16) -> List[str]:

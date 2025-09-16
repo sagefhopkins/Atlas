@@ -1,12 +1,15 @@
 import React, { useState, useEffect } from 'react';
 import axios from 'axios';
+import { useAuth } from '../context/AuthContext';
 import styles from './NavigationBar.module.css';
 
 const NavigationBar = ({ activeTab, onTabChange, devices, totalConnections, onDeviceSelect, selectedDeviceIp, showGraph, onToggleView, onFilterApplied, filteredDevices, setFilteredDevices }) => {
+    const { user, logout } = useAuth();
     const [filterText, setFilterText] = useState('');
     const [activeFilters, setActiveFilters] = useState([]);
     const [isFilterLoading, setIsFilterLoading] = useState(false);
     const [filterError, setFilterError] = useState('');
+    const [showUserMenu, setShowUserMenu] = useState(false);
     
     const [settings, setSettings] = useState({
         auto_refresh: true,
@@ -20,7 +23,6 @@ const NavigationBar = ({ activeTab, onTabChange, devices, totalConnections, onDe
 
     const tabs = [
         { id: 'filters', label: 'Wireshark Filters', icon: '🔍' },
-        //{ id: 'packets', label: 'Packet Inspector', icon: '📦' },
         { id: 'settings', label: 'Settings', icon: '⚙️' },
         { id: 'devices', label: showGraph ? 'Device Tab' : 'Graph Tab', icon: showGraph ? '📱' : '🕸️' }
     ];
@@ -153,6 +155,37 @@ const NavigationBar = ({ activeTab, onTabChange, devices, totalConnections, onDe
                         <span className={styles.tabLabel}>{tab.label}</span>
                     </button>
                 ))}
+                
+                <div className={styles.userProfile}>
+                    <div className={styles.userAvatar}>
+                        {user?.avatar_url ? (
+                            <img 
+                                src={user.avatar_url} 
+                                alt={user.name}
+                                className={styles.avatarImage}
+                            />
+                        ) : (
+                            <div className={styles.avatarPlaceholder}>
+                                {user?.name?.charAt(0) || '?'}
+                            </div>
+                        )}
+                    </div>
+                    <div className={styles.userInfo}>
+                        <div className={styles.userName}>{user?.name || 'User'}</div>
+                        <div className={styles.userEmail}>{user?.email || 'No email'}</div>
+                    </div>
+                    <button 
+                        className={styles.logoutButton}
+                        onClick={() => {
+                            if (window.confirm('Are you sure you want to log out?')) {
+                                logout();
+                            }
+                        }}
+                        title="Logout"
+                    >
+                        🚪
+                    </button>
+                </div>
             </div>
 
             {activeTab === 'filters' && (
@@ -327,6 +360,7 @@ const NavigationBar = ({ activeTab, onTabChange, devices, totalConnections, onDe
                     )}
                 </div>
             )}
+
 
         </nav>
     );

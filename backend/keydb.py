@@ -50,7 +50,7 @@ class ConnectionRecord:
         self.dst_port = dst_port
         self.protocol = protocol
         self.timestamp = timestamp if timestamp is not None else time.time()
-        self.packet_id = packet_id  # Reference to stored packet data
+        self.packet_id = packet_id
 
     def to_dict(self):
         return {
@@ -81,9 +81,9 @@ class ConnectionRecord:
 class PacketRecord:
     def __init__(self, packet_id, raw_data, headers, analysis, timestamp=None):
         self.packet_id = packet_id
-        self.raw_data = raw_data  # Hex representation of packet bytes
-        self.headers = headers  # Parsed protocol headers
-        self.analysis = analysis  # Detailed packet analysis
+        self.raw_data = raw_data
+        self.headers = headers
+        self.analysis = analysis
         self.timestamp = timestamp if timestamp is not None else time.time()
 
     def to_dict(self):
@@ -129,7 +129,7 @@ class KeyDBClient:
             pass
 
         try:
-            self.redis.execute_command("JSON.HELLO")  # will error if present but wrong args
+            self.redis.execute_command("JSON.HELLO")
         except ResponseError as e:
             if "unknown command" in str(e).lower():
                 return False
@@ -180,7 +180,6 @@ class KeyDBClient:
             return None
 
     def store_device(self, device: dict):
-        """device can be a dict with keys: ip/src_ip, mac/src_mac, metadata"""
         try:
             ip = device.get("src_ip") or device.get("ip")
             mac = device.get("src_mac") or device.get("mac")
@@ -203,17 +202,17 @@ class KeyDBClient:
     def _conn_dedupe_key(self, c: dict) -> str:
         return f'{c.get("dst_ip")}:{c.get("dst_port")}:{c.get("protocol")}'
 
-    def store_connection(self, src_ip, dst_ip, src_port=None, dst_port=None, protocol=None):
+    def store_connection(self, src_ip, dst_ip, src_port=None, dst_port=None, protocol=None, packet_id=None):
         try:
             link_key = f"link:{src_ip}:{dst_ip}"
-            link_rec = ConnectionRecord(src_ip, dst_ip, src_port, dst_port, protocol).to_dict()
+            link_rec = ConnectionRecord(src_ip, dst_ip, src_port, dst_port, protocol, packet_id=packet_id).to_dict()
             self._safe_json_set(link_key, ".", link_rec)
             self.redis.expire(link_key, self.ttl)
 
             device_key = f"device:{src_ip}"
             device_data = self.get_device(src_ip)
             if not device_data:
-                conn_obj = ConnectionRecord(src_ip, dst_ip, src_port, dst_port, protocol)
+                conn_obj = ConnectionRecord(src_ip, dst_ip, src_port, dst_port, protocol, packet_id=packet_id)
                 dev = DeviceRecord(ip=src_ip, mac="00:00:00:00:00:00", connections=[conn_obj])
                 self._safe_json_set(device_key, ".", dev.to_dict())
                 self.redis.expire(device_key, self.ttl)
@@ -228,6 +227,8 @@ class KeyDBClient:
                 for c in conns:
                     if self._conn_dedupe_key(c) == key_:
                         c["timestamp"] = link_rec["timestamp"]
+                        if packet_id is not None:
+                            c["packet_id"] = packet_id
                         break
 
             device_data["last_seen"] = time.time()
@@ -271,7 +272,7 @@ class KeyDBClient:
         try:
             key = f"packet:{packet_record.packet_id}"
             self._safe_json_set(key, ".", packet_record.to_dict())
-            self.redis.expire(key, self.ttl * 2)  # 2x TTL for packets
+            self.redis.expire(key, self.ttl * 2)
         except Exception as e:
             logging.exception(f"store_packet failed for {packet_record.packet_id}: {e}")
 
@@ -288,6 +289,16 @@ class KeyDBClient:
             pattern = f"packet:*"
             count = 0
             
+            protocol_number = None
+            if protocol:
+                protocol_map = {
+                    'TCP': 6, 'tcp': 6,
+                    'UDP': 17, 'udp': 17,
+                    'ICMP': 1, 'icmp': 1,
+                    'IP': None, 'ip': None
+                }
+                protocol_number = protocol_map.get(protocol)
+            
             for k in self._scan_keys(pattern):
                 if count >= limit:
                     break
@@ -295,10 +306,52 @@ class KeyDBClient:
                 data = self._safe_json_get(k)
                 if data and data.get("analysis"):
                     analysis = data["analysis"]
-                    if (analysis.get("src_ip") == src_ip and analysis.get("dst_ip") == dst_ip and
-                        (src_port is None or analysis.get("src_port") == src_port) and
-                        (dst_port is None or analysis.get("dst_port") == dst_port) and
-                        (protocol is None or analysis.get("protocol") == protocol)):
+                    
+                    ip_match = (
+                        (analysis.get("src_ip") == src_ip and analysis.get("dst_ip") == dst_ip) or
+                        (analysis.get("src_ip") == dst_ip and analysis.get("dst_ip") == src_ip)
+                    )
+                    
+                    port_match = True
+                    if src_port is not None:
+                        try:
+                            analysis_src_port = analysis.get("src_port")
+                            analysis_dst_port = analysis.get("dst_port")
+                            port_match = port_match and (
+                                analysis_src_port == int(src_port) or
+                                analysis_dst_port == int(src_port)
+                            )
+                        except (ValueError, TypeError):
+                            pass
+                    if dst_port is not None:
+                        try:
+                            analysis_src_port = analysis.get("src_port")
+                            analysis_dst_port = analysis.get("dst_port")
+                            port_match = port_match and (
+                                analysis_dst_port == int(dst_port) or
+                                analysis_src_port == int(dst_port)
+                            )
+                        except (ValueError, TypeError):
+                            pass
+                    
+                    protocol_match = True
+                    if protocol is not None:
+                        stored_protocol = analysis.get("protocol")
+                        stored_protocol_name = analysis.get("protocol_name", "").lower()
+                        
+                        if protocol.upper() == "IP" or protocol is None:
+                            protocol_match = True
+                        else:
+                            protocol_match = (
+                                stored_protocol == protocol or
+                                stored_protocol == protocol_number or
+                                stored_protocol_name == protocol.lower() or
+                                (protocol.upper() == 'TCP' and stored_protocol == 6) or
+                                (protocol.upper() == 'UDP' and stored_protocol == 17) or
+                                (protocol.upper() == 'ICMP' and stored_protocol == 1)
+                            )
+                    
+                    if ip_match and port_match and protocol_match:
                         results.append(data)
                         count += 1
                         
@@ -315,7 +368,7 @@ class KeyDBClient:
             count = 0
             
             for k in self._scan_keys(pattern):
-                if count >= limit * 2:  # Get more than needed for sorting
+                if count >= limit * 2:
                     break
                     
                 data = self._safe_json_get(k)

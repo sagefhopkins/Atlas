@@ -3,7 +3,7 @@ import * as d3 from 'd3';
 import axios from 'axios';
 import styles from './NetworkGraph.module.css';
 import NavigationBar from './NavigationBar';
-import PacketInspector from './PacketInspector';
+import PacketInspector from './PacketInspector.jsx';
 
 const GATEWAY_IP = '127.0.0.1';
 const LOCAL_NODE = 'LOCAL';
@@ -91,7 +91,6 @@ const NetworkGraph = () => {
         nodesMap.set("REMOTE", remoteNode);
         nodesMap.set(GATEWAY_IP, gatewayNode);
 
-        // Link LOCAL and REMOTE to GATEWAY
         links.push({ source: "LOCAL", target: GATEWAY_IP });
         links.push({ source: "REMOTE", target: GATEWAY_IP });
 
@@ -191,7 +190,6 @@ const NetworkGraph = () => {
 
             nodeGroup.attr('transform', d => `translate(${d.x},${d.y})`);
             
-            // Update selected connection lines on every tick
             updateSelectedConnectionLines();
         });
     };
@@ -218,10 +216,8 @@ const NetworkGraph = () => {
         updateSelectedConnectionLines();
     }, [selectedConnection]);
 
-    // Re-render graph when switching back to graph view
     useEffect(() => {
         if (showGraph && allDevices.length > 0) {
-            // Small delay to ensure DOM is ready
             const timeout = setTimeout(() => {
                 renderGraph(allDevices);
             }, 100);
@@ -230,14 +226,11 @@ const NetworkGraph = () => {
     }, [showGraph]);
 
 
-    // Calculate total connections for statistics
     const totalConnections = allDevices.reduce((total, device) => {
         return total + (device.connections ? device.connections.length : 0);
     }, 0);
 
-    // Handle device selection from navigation bar
     const handleDeviceSelect = (deviceIp) => {
-        // Find the node corresponding to this device IP
         const targetNode = nodesRef.current.find(node => node.id === deviceIp);
         if (targetNode) {
             setSelectedNode(targetNode);
@@ -245,19 +238,15 @@ const NetworkGraph = () => {
         }
     };
 
-    // Handle filter application
     const handleFilterApplied = (filtered) => {
         setFilteredDevices(filtered);
-        // Re-render graph with filtered data if we're in graph view
         if (showGraph && filtered) {
             renderGraph(filtered);
         }
     };
 
-    // Get devices to display (filtered or all)
     const devicesToDisplay = filteredDevices || allDevices;
     
-    // Get connections for the selected device from the displayed devices
     const getSelectedConnections = () => {
         if (!selectedNode?.id) return [];
         const device = devicesToDisplay.find(dev => dev.ip === selectedNode.id);
@@ -265,34 +254,27 @@ const NetworkGraph = () => {
     };
 
 
-    // Handle tab changes, with special logic for devices and packets tabs
     const handleTabChange = (tabId) => {
         if (tabId === 'devices') {
-            // Toggle between graph and device view
             setShowGraph(!showGraph);
-            // Keep the active tab as devices when in device view, otherwise clear it
             setActiveTab(showGraph ? 'devices' : 'filters');
             setShowPacketInspector(false);
         } else if (tabId === 'packets') {
-            // Show packet inspector
             setShowPacketInspector(true);
             setActiveTab(tabId);
         } else {
-            // For other tabs, set active tab and ensure graph view is shown
             setActiveTab(tabId);
             setShowGraph(true);
             setShowPacketInspector(false);
         }
     };
 
-    // Helper function to get IP address class
     const getIpClass = (ip) => {
         if (ip === GATEWAY_IP) return styles.gatewayIp;
         if (ip.startsWith('192.168.')) return styles.localIp;
         return styles.remoteIp;
     };
 
-    // Helper function to get protocol class
     const getProtocolClass = (protocol) => {
         switch (protocol.toLowerCase()) {
             case 'tcp': return styles.protocolTcp;
@@ -318,7 +300,6 @@ const NetworkGraph = () => {
             />
             
             {showGraph ? (
-                // Graph View
                 <>
                     <div className={styles.layout}>
                         <div className={styles.graphSection}>
@@ -358,6 +339,7 @@ const NetworkGraph = () => {
                                     <th className={styles.headerCell}>Src Port</th>
                                     <th className={styles.headerCell}>Dst Port</th>
                                     <th className={styles.headerCell}>Timestamp</th>
+                                    <th className={styles.headerCell}>Actions</th>
                                 </tr>
                             </thead>
                             <tbody>
@@ -397,12 +379,24 @@ const NetworkGraph = () => {
                                                         {new Date(conn.timestamp * 1000).toLocaleString()}
                                                     </span>
                                                 </td>
+                                                <td className={styles.cell}>
+                                                    <button 
+                                                        className={styles.inspectButton}
+                                                        onClick={(e) => {
+                                                            e.stopPropagation();
+                                                            setSelectedConnection(conn);
+                                                            setShowPacketInspector(true);
+                                                        }}
+                                                    >
+                                                        🔍 Inspect
+                                                    </button>
+                                                </td>
                                             </tr>
                                         );
                                     })
                                 ) : (
                                     <tr className={styles.emptyRow}>
-                                        <td colSpan="6" className={styles.emptyCell}>
+                                        <td colSpan="7" className={styles.emptyCell}>
                                             {selectedNode
                                                 ? 'No connections found for this node.'
                                                 : 'Click a node to view its connections.'}
@@ -414,7 +408,6 @@ const NetworkGraph = () => {
                     </div>
                 </>
             ) : (
-                // Device View - Replace graph with device list
                 <>
                     <div className={styles.layout}>
                         <div className={styles.graphSection}>
@@ -551,6 +544,7 @@ const NetworkGraph = () => {
                                     <th className={styles.headerCell}>Src Port</th>
                                     <th className={styles.headerCell}>Dst Port</th>
                                     <th className={styles.headerCell}>Timestamp</th>
+                                    <th className={styles.headerCell}>Actions</th>
                                 </tr>
                             </thead>
                             <tbody>
@@ -580,9 +574,6 @@ const NetworkGraph = () => {
                                                     </span>
                                                 </td>
                                                 <td className={styles.cell}>
-                                                    <span className={styles.port}>{conn.src_port}</span>
-                                                </td>
-                                                <td className={styles.cell}>
                                                     <span className={styles.port}>{conn.dst_port}</span>
                                                 </td>
                                                 <td className={styles.cell}>
@@ -590,12 +581,24 @@ const NetworkGraph = () => {
                                                         {new Date(conn.timestamp * 1000).toLocaleString()}
                                                     </span>
                                                 </td>
+                                                <td className={styles.cell}>
+                                                    <button 
+                                                        className={styles.inspectButton}
+                                                        onClick={(e) => {
+                                                            e.stopPropagation();
+                                                            setSelectedConnection(conn);
+                                                            setShowPacketInspector(true);
+                                                        }}
+                                                    >
+                                                        🔍 Inspect
+                                                    </button>
+                                                </td>
                                             </tr>
                                         );
                                     })
                                 ) : (
                                     <tr className={styles.emptyRow}>
-                                        <td colSpan="6" className={styles.emptyCell}>
+                                        <td colSpan="7" className={styles.emptyCell}>
                                             {selectedNode
                                                 ? 'No connections found for this device.'
                                                 : 'Click a device to view its connections.'}
@@ -608,12 +611,21 @@ const NetworkGraph = () => {
                 </>
             )}
             
-            {/* Packet Inspector Modal */}
             {showPacketInspector && (
-                <PacketInspector 
-                    selectedConnection={selectedConnection}
-                    onClose={() => setShowPacketInspector(false)}
-                />
+                <div>
+                    {console.log('📑 Rendering PacketInspector with:', {
+                        showPacketInspector,
+                        selectedConnection,
+                        hasSelectedConnection: !!selectedConnection
+                    })}
+                    <PacketInspector 
+                        selectedConnection={selectedConnection}
+                        onClose={() => {
+                            console.log('🚪 Closing PacketInspector');
+                            setShowPacketInspector(false);
+                        }}
+                    />
+                </div>
             )}
         </div>
     );

@@ -200,6 +200,32 @@
   border: 1px solid rgba(156, 39, 176, 0.3);
 }
 
+.inspectButton {
+  background: linear-gradient(135deg, #4CAF50, #45a049);
+  border: none;
+  color: white;
+  padding: 6px 12px;
+  font-size: 12px;
+  border-radius: 4px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  font-weight: 500;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.inspectButton:hover {
+  background: linear-gradient(135deg, #45a049, #3e8e41);
+  transform: translateY(-1px);
+  box-shadow: 0 4px 8px rgba(76, 175, 80, 0.3);
+}
+
+.inspectButton:active {
+  transform: translateY(0);
+  box-shadow: 0 2px 4px rgba(76, 175, 80, 0.3);
+}
+
 .port {
   color: #ffb74d;
   font-weight: 500;

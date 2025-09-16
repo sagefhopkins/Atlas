@@ -5,7 +5,8 @@ from pyp0f.database import DATABASE
 from pyp0f.fingerprint import fingerprint_mtu, fingerprint_tcp, fingerprint_http
 from pyp0f.fingerprint.results import MTUResult, TCPResult, HTTPResult
 from multiprocessing import Process, Queue
-from keydb import KeyDBClient, DeviceRecord, ConnectionRecord
+from keydb import KeyDBClient, DeviceRecord, ConnectionRecord, PacketRecord
+from packet_analyzer import create_packet_record
 import ipaddress
 import signal
 import time
@@ -43,12 +44,19 @@ def _capture_worker(queue, iface):
     db = KeyDBClient(ttl_seconds=60)
 
     def process_packet(packet):
+        
+        try:
+            packet_record = create_packet_record(packet)
+            db.store_packet(packet_record)
+            queue.put(packet_record.to_dict())
+        except Exception as e:
+            print(f"Error storing packet: {e}")
+        
         if ARP in packet:
             src_ip = packet[ARP].psrc
             mac = packet[ARP].hwsrc
             record = DeviceRecord(ip=src_ip, mac=mac, metadata={"type": "ARP"})
             db.store_device(record.to_dict())
-            queue.put(record.to_dict())
         elif IP in packet:
             src_ip = packet[IP].src
             dst_ip = packet[IP].dst
@@ -73,21 +81,22 @@ def _capture_worker(queue, iface):
                 else:
                     record = DeviceRecord(ip=src_ip, mac=mac, metadata={"type": proto})
                 
+                packet_id = packet_record.packet_id if 'packet_record' in locals() else None
                 record.connections.append(ConnectionRecord(
                     src_ip=src_ip,
                     dst_ip=dst_ip,
                     src_port=src_port,
                     dst_port=dst_port,
-                    protocol=proto
+                    protocol=proto,
+                    packet_id=packet_id
                 ))
 
                 db.store_device(record.to_dict())
-                queue.put(record.to_dict())
             
             if is_local_ip(src_ip):
-                db.store_connection(src_ip, dst_ip, src_port, dst_port, proto)
+                db.store_connection(src_ip, dst_ip, src_port, dst_port, proto, packet_record.packet_id if 'packet_record' in locals() else None)
             elif is_local_ip(dst_ip):
-                db.store_connection(dst_ip, src_ip, src_port, dst_port, proto)
+                db.store_connection(dst_ip, src_ip, src_port, dst_port, proto, packet_record.packet_id if 'packet_record' in locals() else None)
 
             try:
                 if TCP in packet and packet[TCP].flags & 0x02: # SYN flag
@@ -112,7 +121,6 @@ def _capture_worker(queue, iface):
                             else:
                                 record = DeviceRecord(ip=src_ip, mac=mac, metadata=os_metadata)
                             db.store_device(record.to_dict())
-                            queue.put(record.to_dict())
             except Exception as e:
                 print(f"Error fingerprinting TCP packet: {e}")
 
@@ -138,7 +146,6 @@ def _capture_worker(queue, iface):
                             else:
                                 record = DeviceRecord(ip=src_ip, mac=mac, metadata=http_metadata)
                             db.store_device(record.to_dict())
-                            queue.put(record.to_dict())
             except Exception as e:
                 print(f"Error fingerprinting HTTP packet: {e}")
 
@@ -163,20 +170,21 @@ def _capture_worker(queue, iface):
                         else:
                             record = DeviceRecord(ip=src_ip, mac=mac, metadata=metadata)
 
+                        packet_id = packet_record.packet_id if 'packet_record' in locals() else None
                         record.connections.append(ConnectionRecord(
                             src_ip=src_ip,
                             dst_ip=dst_ip,
                             src_port=None,
                             dst_port=None,
-                            protocol="OTHER"
+                            protocol="OTHER",
+                            packet_id=packet_id
                         ))
                         db.store_device(record.to_dict())
-                        queue.put(record.to_dict())
 
                     if is_local_ip(src_ip):
-                        db.store_connection(src_ip, dst_ip, None, None, "OTHER")
+                        db.store_connection(src_ip, dst_ip, None, None, "OTHER", packet_record.packet_id if 'packet_record' in locals() else None)
                     elif is_local_ip(dst_ip):
-                        db.store_connection(dst_ip, src_ip, None, None, "OTHER")
+                        db.store_connection(dst_ip, src_ip, None, None, "OTHER", packet_record.packet_id if 'packet_record' in locals() else None)
             except ValueError as e:
                 if "Not an HTTP payload" not in str(e):
                     print(f"ValueError processing undefined packet: {e}")

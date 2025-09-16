@@ -1,14 +1,22 @@
-from fastapi import FastAPI, WebSocket, WebSocketDisconnect, HTTPException, Body
+from fastapi import FastAPI, WebSocket, WebSocketDisconnect, HTTPException, Body, Depends, status
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 from typing import List, Optional, Dict, Any
 from keydb import KeyDBClient, DeviceRecord, ConnectionRecord, PacketRecord
 from packetcapture import PacketCapture
 from packet_analyzer import format_hex_dump
+from auth import (
+    init_auth, get_current_user, get_current_user_optional,
+    User, Token, GoogleTokenData, get_auth_manager
+)
 import asyncio
 import json
 import time
 import re
+import os
+from dotenv import load_dotenv
+
+load_dotenv()
 
 class WiresharkFilter(BaseModel):
     name: str
@@ -40,8 +48,15 @@ class ConnectionFilter(BaseModel):
 
 app = FastAPI(title="Atlas Network Monitor API", version="1.0.0")
 db = KeyDBClient()
-packet_capture = PacketCapture()
-packet_capture.start()
+
+packet_capture = None
+try:
+    packet_capture = PacketCapture()
+    packet_capture.start()
+    print("Packet capture started successfully")
+except Exception as e:
+    print(f"Warning: Could not start packet capture: {e}")
+    print("Authentication and other features will still work.")
 
 active_filters = []
 current_settings = Settings()
@@ -64,6 +79,15 @@ app.add_middleware(
 
 @app.on_event("startup")
 async def start_pubsub():
+    try:
+        print("Initializing authentication...")
+        init_auth(db)
+        print("Authentication initialized successfully")
+    except Exception as e:
+        print(f"Failed to initialize authentication: {e}")
+        import traceback
+        traceback.print_exc()
+    
     import threading
     t = threading.Thread(target=listen_for_changes, daemon=True)
     t.start()
@@ -291,7 +315,6 @@ def filter_connections(filter_data: ConnectionFilter):
     
     for device in devices:
         for conn in device.get('connections', []):
-            # Apply filters
             if filter_data.protocol and conn.get('protocol') != filter_data.protocol:
                 continue
             if filter_data.src_ip and conn.get('src_ip') != filter_data.src_ip:
@@ -331,6 +354,25 @@ def get_packet_details(packet_id: str):
         raise
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Error retrieving packet: {str(e)}")
+
+@app.get("/packets/live") 
+def get_live_packets(limit: int = 20):
+    try:
+        if packet_capture and packet_capture.queue:
+            packets = []
+            while not packet_capture.queue.empty() and len(packets) < limit:
+                try:
+                    packet_data = packet_capture.queue.get_nowait()
+                    if packet_data.get("raw_data"):
+                        packet_data["hex_dump"] = format_hex_dump(packet_data["raw_data"])
+                    packets.append(packet_data)
+                except:
+                    break
+            return {"packets": packets, "count": len(packets)}
+        else:
+            return {"packets": [], "count": 0}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error retrieving live packets: {str(e)}")
 
 @app.get("/packets/connection/{src_ip}/{dst_ip}")
 def get_packets_by_connection(
@@ -610,3 +652,51 @@ def matches_wireshark_filter(connection, filter_expression):
     except Exception as e:
         print(f"Error applying filter {filter_expression}: {e}")
         return False
+
+
+@app.post("/auth/google", response_model=Token)
+async def authenticate_google(token_data: GoogleTokenData):
+    auth_manager = get_auth_manager()
+    if not auth_manager:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Authentication not initialized"
+        )
+    
+    try:
+        print(f"Received token data: {token_data}")
+        return auth_manager.authenticate_with_google(token_data)
+    except HTTPException:
+        raise
+    except Exception as e:
+        print(f"Google auth error: {e}")
+        import traceback
+        traceback.print_exc()
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Authentication failed: {str(e)}"
+        )
+
+@app.get("/auth/me", response_model=User)
+async def get_current_user_info(current_user: User = Depends(get_current_user)):
+    return current_user
+
+@app.post("/auth/logout")
+async def logout(current_user: User = Depends(get_current_user)):
+    return {"message": "Successfully logged out"}
+
+@app.get("/auth/config")
+async def get_auth_config():
+    return {
+        "google_client_id": os.getenv("GOOGLE_CLIENT_ID"),
+        "providers": ["google"]
+    }
+
+@app.get("/devices/protected")
+def get_devices_protected(current_user: User = Depends(get_current_user)):
+    return db.get_all_devices()
+
+@app.post("/clear/protected")
+def clear_protected(current_user: User = Depends(get_current_user)):
+    db.clear_all()
+    return {"status": "cleared", "user": current_user.email}

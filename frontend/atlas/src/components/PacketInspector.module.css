@@ -113,12 +113,27 @@
     font-size: 1.1rem;
 }
 
-/* Packet List Styles */
-.packetList {
+.toolbar {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    padding: 12px 20px;
+    border-bottom: 1px solid #475569;
+    background: rgba(51, 65, 85, 0.3);
+}
+
+.content {
     flex: 1;
     display: flex;
     flex-direction: column;
     overflow: hidden;
+}
+
+.packetList {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    overflow-y: auto;
 }
 
 .listHeader {
@@ -173,6 +188,16 @@
     flex-direction: column;
 }
 
+.tableBody {
+    flex: 1;
+    overflow-y: auto;
+    overflow-x: hidden;
+    min-height: 200px;
+    height: auto;
+    background: rgba(255, 255, 255, 0.02);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
 .tableHeader {
     display: grid;
     grid-template-columns: 150px 180px 180px 100px 100px 160px 80px;
@@ -196,6 +221,12 @@
     cursor: pointer;
     transition: all 0.2s ease;
     font-size: 0.9rem;
+    min-height: 48px;
+    height: auto;
+    opacity: 1;
+    visibility: visible;
+    background: rgba(51, 65, 85, 0.1);
+    align-items: center;
 }
 
 .packetRow:hover {
@@ -266,7 +297,6 @@
     font-size: 1.1rem;
 }
 
-/* Packet Details Styles */
 .packetDetails {
     flex: 1;
     display: flex;
@@ -510,7 +540,6 @@
     word-break: break-all;
 }
 
-/* Hex Dump Styles */
 .hexDump {
     flex: 1;
     display: flex;
@@ -564,7 +593,6 @@
     font-size: 1.1rem;
 }
 
-/* Responsive Design */
 @media (max-width: 1200px) {
     .tableHeader, .packetRow {
         grid-template-columns: 120px 150px 150px 90px 90px 130px 70px;
@@ -624,7 +652,6 @@
     }
 }
 
-/* Scrollbar Styling */
 .detailsContent::-webkit-scrollbar,
 .hexContent::-webkit-scrollbar,
 .payloadPreview::-webkit-scrollbar {
