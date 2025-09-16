@@ -51,7 +51,7 @@ const Login = () => {
 
   const handleGoogleResponse = async (response) => {
     setError('');
-    
+
     try {
       const result = await loginWithGoogle({
         credential: response.credential,
@@ -89,11 +89,10 @@ const Login = () => {
         <div className={styles.content}>
           {error && (
             <div className={styles.errorMessage}>
-              <span className={styles.errorIcon}>⚠️</span>
+              <span className={styles.errorIcon}></span>
               {error}
             </div>
           )}
-
           <div className={styles.loginOptions}>
             {isGoogleLoaded && authConfig?.google_client_id ? (
               <div className={styles.googleSigninContainer}>
@@ -107,7 +106,6 @@ const Login = () => {
             )}
           </div>
         </div>
-
         <div className={styles.footer}>
           <p>Secure login powered by Google OAuth 2.0</p>
         </div>
