@@ -106,17 +106,6 @@ const Login = () => {
               </div>
             )}
           </div>
-
-          <div className={styles.features}>
-            <h3>Atlas Network Monitor Features:</h3>
-            <ul>
-              <li>📊 Real-time network topology visualization</li>
-              <li>🔍 Advanced packet inspection and analysis</li>
-              <li>🌐 Device discovery and connection tracking</li>
-              <li>📈 Network statistics and monitoring</li>
-              <li>🔒 Secure authentication and access control</li>
-            </ul>
-          </div>
         </div>
 
         <div className={styles.footer}>
