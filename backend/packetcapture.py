@@ -48,7 +48,7 @@ def _capture_worker(queue, iface):
         try:
             packet_record = create_packet_record(packet)
             db.store_packet(packet_record)
-            queue.put(packet_record.to_dict())
+            queue.put(packet_record.model_dump())
         except Exception as e:
             print(f"Error storing packet: {e}")
         
@@ -56,7 +56,7 @@ def _capture_worker(queue, iface):
             src_ip = packet[ARP].psrc
             mac = packet[ARP].hwsrc
             record = DeviceRecord(ip=src_ip, mac=mac, metadata={"type": "ARP"})
-            db.store_device(record.to_dict())
+            db.store_device(record.model_dump())
         elif IP in packet:
             src_ip = packet[IP].src
             dst_ip = packet[IP].dst
@@ -71,12 +71,7 @@ def _capture_worker(queue, iface):
             if is_local_ip(src_ip):
                 existing = db.get_device(src_ip)
                 if existing:
-                    record = DeviceRecord(
-                        ip=existing["ip"],
-                        mac=existing["mac"],
-                        metadata=existing.get("metadata", {}),
-                        connections=[ConnectionRecord(**conn) for conn in existing.get("connections", [])]
-                    )
+                    record = DeviceRecord.model_validate(existing)
                     record.update_metadata({"type": proto})
                 else:
                     record = DeviceRecord(ip=src_ip, mac=mac, metadata={"type": proto})
@@ -91,7 +86,7 @@ def _capture_worker(queue, iface):
                     packet_id=packet_id
                 ))
 
-                db.store_device(record.to_dict())
+                db.store_device(record.model_dump())
             
             if is_local_ip(src_ip):
                 db.store_connection(src_ip, dst_ip, src_port, dst_port, proto, packet_record.packet_id if 'packet_record' in locals() else None)
@@ -111,16 +106,11 @@ def _capture_worker(queue, iface):
                         if is_local_ip(src_ip):
                             existing = db.get_device(src_ip)
                             if existing:
-                                record = DeviceRecord(
-                                    ip=existing["ip"],
-                                    mac=existing["mac"],
-                                    metadata=existing.get("metadata", {}),
-                                    connections=[ConnectionRecord(**conn) for conn in existing.get("connections", [])]
-                                )
+                                record = DeviceRecord.model_validate(existing)
                                 record.update_metadata(os_metadata)
                             else:
                                 record = DeviceRecord(ip=src_ip, mac=mac, metadata=os_metadata)
-                            db.store_device(record.to_dict())
+                            db.store_device(record.model_dump())
             except Exception as e:
                 print(f"Error fingerprinting TCP packet: {e}")
 
@@ -136,16 +126,11 @@ def _capture_worker(queue, iface):
                         if is_local_ip(src_ip):
                             existing = db.get_device(src_ip)
                             if existing:
-                                record = DeviceRecord(
-                                    ip=existing["ip"],
-                                    mac=existing["mac"],
-                                    metadata=existing.get("metadata", {}),
-                                    connections=[ConnectionRecord(**conn) for conn in existing.get("connections", [])]
-                                )
+                                record = DeviceRecord.model_validate(existing)
                                 record.update_metadata(http_metadata)
                             else:
                                 record = DeviceRecord(ip=src_ip, mac=mac, metadata=http_metadata)
-                            db.store_device(record.to_dict())
+                            db.store_device(record.model_dump())
             except Exception as e:
                 print(f"Error fingerprinting HTTP packet: {e}")
 
@@ -160,12 +145,7 @@ def _capture_worker(queue, iface):
                     if is_local_ip(src_ip):
                         existing = db.get_device(src_ip)
                         if existing:
-                            record = DeviceRecord(
-                                ip=existing["ip"],
-                                mac=existing["mac"],
-                                metadata=existing.get("metadata", {}),
-                                connections=[ConnectionRecord(**conn) for conn in existing.get("connections", [])]
-                            )
+                            record = DeviceRecord.model_validate(existing)
                             record.update_metadata(metadata)
                         else:
                             record = DeviceRecord(ip=src_ip, mac=mac, metadata=metadata)
@@ -179,7 +159,7 @@ def _capture_worker(queue, iface):
                             protocol="OTHER",
                             packet_id=packet_id
                         ))
-                        db.store_device(record.to_dict())
+                        db.store_device(record.model_dump())
 
                     if is_local_ip(src_ip):
                         db.store_connection(src_ip, dst_ip, None, None, "OTHER", packet_record.packet_id if 'packet_record' in locals() else None)
@@ -214,8 +194,8 @@ class PacketCapture:
 
         metadata = {"type": "ARP"}
         record = DeviceRecord(ip=src_ip, mac=mac, metadata=metadata)
-        self.db.store_device(record.to_dict())
-        self.queue.put(record.to_dict())
+        self.db.store_device(record.model_dump())
+        self.queue.put(record.model_dump())
 
     def process_ip_packet(self, packet):
         src_ip = packet[IP].src
@@ -230,12 +210,7 @@ class PacketCapture:
         if is_local_ip(src_ip):
             existing = self.db.get_device(src_ip)
             if existing:
-                record = DeviceRecord(
-                    ip=existing["ip"],
-                    mac=existing["mac"],
-                    metadata=existing.get("metadata", {}),
-                    connections=[ConnectionRecord(**conn) for conn in existing.get("connections", [])]
-                )
+                record = DeviceRecord.model_validate(existing)
                 record.update_metadata(metadata)
             else:
                 record = DeviceRecord(ip=src_ip, mac=mac, metadata=metadata)
@@ -248,8 +223,8 @@ class PacketCapture:
                 protocol=protocol
             ))
 
-            self.db.store_device(record.to_dict())
-            self.queue.put(record.to_dict())
+            self.db.store_device(record.model_dump())
+            self.queue.put(record.model_dump())
 
         if is_local_ip(src_ip):
             self.db.store_connection(src_ip, dst_ip, src_port, dst_port, protocol)
@@ -273,18 +248,13 @@ class PacketCapture:
                     if is_local_ip(src_ip):
                         existing = self.db.get_device(src_ip)
                         if existing:
-                            record = DeviceRecord(
-                                ip=existing["ip"],
-                                mac=existing["mac"],
-                                metadata=existing.get("metadata", {}),
-                                connections=[ConnectionRecord(**conn) for conn in existing.get("connections", [])]
-                            )
+                            record = DeviceRecord.model_validate(existing)
                             record.update_metadata(os_metadata)
                         else:
                             record = DeviceRecord(ip=src_ip, mac=mac, metadata=os_metadata)
 
-                        self.db.store_device(record.to_dict())
-                        self.queue.put(record.to_dict())
+                        self.db.store_device(record.model_dump())
+                        self.queue.put(record.model_dump())
         except Exception as e:
             print(f"Error fingerprinting TCP packet: {e}")
 
@@ -304,18 +274,13 @@ class PacketCapture:
                 if is_local_ip(src_ip):
                     existing = self.db.get_device(src_ip)
                     if existing:
-                        record = DeviceRecord(
-                            ip=existing["ip"],
-                            mac=existing["mac"],
-                            metadata=existing.get("metadata", {}),
-                            connections=[ConnectionRecord(**conn) for conn in existing.get("connections", [])]
-                        )
+                        record = DeviceRecord.model_validate(existing)
                         record.update_metadata(http_metadata)
                     else:
                         record = DeviceRecord(ip=src_ip, mac=mac, metadata=http_metadata)
 
-                    self.db.store_device(record.to_dict())
-                    self.queue.put(record.to_dict())
+                    self.db.store_device(record.model_dump())
+                    self.queue.put(record.model_dump())
         except Exception as e:
             print(f"Error fingerprinting HTTP packet: {e}")
 
@@ -331,12 +296,7 @@ class PacketCapture:
                 if is_local_ip(src_ip):
                     existing = self.db.get_device(src_ip)
                     if existing:
-                        record = DeviceRecord(
-                            ip=existing["ip"],
-                            mac=existing["mac"],
-                            metadata=existing.get("metadata", {}),
-                            connections=[ConnectionRecord(**conn) for conn in existing.get("connections", [])]
-                        )
+                        record = DeviceRecord.model_validate(existing)
                         record.update_metadata(metadata)
                     else:
                         record = DeviceRecord(ip=src_ip, mac=mac, metadata=metadata)
@@ -349,8 +309,8 @@ class PacketCapture:
                         protocol=protocol
                     ))
 
-                    self.db.store_device(record.to_dict())
-                    self.queue.put(record.to_dict())
+                    self.db.store_device(record.model_dump())
+                    self.queue.put(record.model_dump())
 
                 if is_local_ip(src_ip):
                     self.db.store_connection(src_ip, dst_ip, None, None, protocol)

@@ -430,52 +430,155 @@ def get_security_analysis(packet) -> Dict[str, Any]:
         "is_encrypted": False,
         "is_suspicious": False,
         "warnings": [],
-        "risk_level": "low"
+        "risk_level": "low",
+        "risk_score": 0,
+        "threat_indicators": []
     }
+    
+    risk_score = 0
     
     if packet.haslayer(TCP):
         tcp = packet[TCP]
-        encrypted_ports = [443, 22, 993, 995, 465, 587, 636]
+        encrypted_ports = [443, 22, 993, 995, 465, 587, 636, 990, 989]
         if tcp.sport in encrypted_ports or tcp.dport in encrypted_ports:
             security_info["is_encrypted"] = True
+        
+        if tcp.flags == 0:
+            security_info["warnings"].append("TCP null scan detected")
+            security_info["threat_indicators"].append("port_scan")
+            security_info["is_suspicious"] = True
+            risk_score += 50
+        elif tcp.flags == 0x3F:
+            security_info["warnings"].append("TCP XMAS scan detected")
+            security_info["threat_indicators"].append("port_scan")
+            security_info["is_suspicious"] = True
+            risk_score += 50
+        elif tcp.flags & 0x29 == 0x29:
+            security_info["warnings"].append("TCP FIN scan detected")
+            security_info["threat_indicators"].append("port_scan")
+            security_info["is_suspicious"] = True
+            risk_score += 45
+        elif tcp.flags & 0x06 == 0x06:
+            security_info["warnings"].append("Unusual TCP SYN+RST combination")
+            risk_score += 15
+        
+        suspicious_ports = [1433, 3389, 5900, 23, 135, 139, 445, 1723, 1521, 5432, 3306]
+        if tcp.dport in suspicious_ports:
+            security_info["warnings"].append(f"Connection to potentially vulnerable service on port {tcp.dport}")
+            security_info["threat_indicators"].append("suspicious_port")
+            risk_score += 20
+        
+        high_ports = [x for x in [tcp.sport, tcp.dport] if x and x > 49152]
+        if len(high_ports) == 2:
+            security_info["warnings"].append("Communication between high ports (potential P2P or malware)")
+            risk_score += 25
+    
+    elif packet.haslayer(UDP):
+        udp = packet[UDP]
+        
+        suspicious_udp_ports = [69, 111, 161, 1900, 5353]
+        if udp.dport in suspicious_udp_ports:
+            security_info["warnings"].append(f"UDP traffic to potentially exploitable service on port {udp.dport}")
+            risk_score += 15
+        
+        if udp.sport == udp.dport:
+            security_info["warnings"].append("UDP source and destination ports are identical (potential reflection attack)")
+            security_info["threat_indicators"].append("reflection_attack")
+            risk_score += 30
     
     if packet.haslayer(IP):
         ip = packet[IP]
         
         try:
-            src_private = ipaddress.ip_address(ip.src).is_private
-            dst_private = ipaddress.ip_address(ip.dst).is_private
+            src_addr = ipaddress.ip_address(ip.src)
+            dst_addr = ipaddress.ip_address(ip.dst)
             
-            suspicious_ranges = [
-                "10.0.0.0/8",
-                "172.16.0.0/12", 
-                "169.254.0.0/16"  # Link-local
+            if src_addr.is_multicast or dst_addr.is_multicast:
+                security_info["warnings"].append("Multicast traffic detected")
+                risk_score += 5
+            
+            if src_addr.is_loopback and not dst_addr.is_loopback:
+                security_info["warnings"].append("Suspicious: loopback source to external destination")
+                security_info["threat_indicators"].append("spoofing")
+                risk_score += 35
+            
+            bogon_ranges = [
+                "0.0.0.0/8", "127.0.0.0/8", "224.0.0.0/3", "240.0.0.0/4"
             ]
             
-            for range_str in suspicious_ranges:
+            for range_str in bogon_ranges:
                 network = ipaddress.ip_network(range_str)
-                if (ipaddress.ip_address(ip.src) in network or 
-                    ipaddress.ip_address(ip.dst) in network):
-                    security_info["warnings"].append(f"Traffic involving reserved range: {range_str}")
-                    
-        except:
-            pass
+                if src_addr in network or dst_addr in network:
+                    security_info["warnings"].append(f"Traffic with bogon IP range: {range_str}")
+                    security_info["threat_indicators"].append("bogon_ip")
+                    risk_score += 25
+                    break
+            
+            if ip.ttl < 10:
+                security_info["warnings"].append(f"Very low TTL ({ip.ttl}) - possible evasion technique")
+                risk_score += 20
+            elif ip.ttl > 200:
+                security_info["warnings"].append(f"Unusually high TTL ({ip.ttl})")
+                risk_score += 10
+            
+            if hasattr(ip, 'flags') and ip.flags:
+                if ip.flags & 0x4:
+                    security_info["warnings"].append("Evil bit set in IP header")
+                    risk_score += 5
+                if ip.flags & 0x2 and ip.frag == 0:
+                    security_info["warnings"].append("Don't Fragment flag with fragmentation")
+                    risk_score += 10
+            
+        except ValueError:
+            security_info["warnings"].append("Invalid IP address format")
+            risk_score += 15
     
-    if packet.haslayer(TCP):
-        tcp = packet[TCP]
-        if tcp.flags == 0:  # Null scan
-            security_info["warnings"].append("TCP null scan detected")
-            security_info["is_suspicious"] = True
-        elif tcp.flags == 0x3F:  # All flags set
-            security_info["warnings"].append("TCP XMAS scan detected")
-            security_info["is_suspicious"] = True
-        elif tcp.flags & 0x06 == 0x06:  # SYN+RST
-            security_info["warnings"].append("Unusual TCP SYN+RST combination")
+    if packet.haslayer(ICMP):
+        icmp = packet[ICMP]
+        
+        suspicious_icmp_types = [13, 14, 15, 16, 17, 18]
+        if icmp.type in suspicious_icmp_types:
+            security_info["warnings"].append(f"Suspicious ICMP type {icmp.type} (potential reconnaissance)")
+            security_info["threat_indicators"].append("icmp_recon")
+            risk_score += 25
+        
+        if icmp.type == 5:
+            security_info["warnings"].append("ICMP redirect detected (potential MITM attack)")
+            security_info["threat_indicators"].append("icmp_redirect")
+            risk_score += 40
     
-    if security_info["is_suspicious"] or len(security_info["warnings"]) > 0:
-        security_info["risk_level"] = "medium"
-    if len(security_info["warnings"]) > 2:
+    if packet.haslayer(DNS):
+        dns = packet[DNS]
+        
+        if dns.qr == 0 and dns.qdcount > 10:
+            security_info["warnings"].append("DNS query with excessive question count (potential amplification)")
+            security_info["threat_indicators"].append("dns_amplification")
+            risk_score += 30
+        
+        if dns.qr == 1 and dns.ancount > 50:
+            security_info["warnings"].append("DNS response with excessive answers (potential amplification)")
+            security_info["threat_indicators"].append("dns_amplification")
+            risk_score += 35
+    
+    packet_size = len(packet)
+    if packet_size > 9000:
+        security_info["warnings"].append(f"Jumbo packet detected ({packet_size} bytes)")
+        risk_score += 15
+    elif packet_size < 20:
+        security_info["warnings"].append(f"Unusually small packet ({packet_size} bytes)")
+        risk_score += 10
+    
+    security_info["risk_score"] = min(risk_score, 100)
+    
+    if risk_score >= 50 or "port_scan" in security_info["threat_indicators"]:
         security_info["risk_level"] = "high"
+    elif risk_score >= 20 or len(security_info["warnings"]) >= 2:
+        security_info["risk_level"] = "medium"
+    else:
+        security_info["risk_level"] = "low"
+    
+    if risk_score > 0:
+        security_info["is_suspicious"] = True
     
     return security_info
 

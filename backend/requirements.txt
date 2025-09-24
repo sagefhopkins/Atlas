@@ -1,10 +1,5 @@
-# Atlas Network Monitor Backend Dependencies
-
-# FastAPI and related
 python-multipart==0.0.6
-
 psutil==5.9.6
-# Additional utilities
 python-dotenv==1.0.0
 annotated-types==0.7.0
 anyio==4.10.0
@@ -24,8 +19,6 @@ starlette==0.47.3
 typing-inspection==0.4.1
 typing_extensions==4.15.0
 uvicorn==0.35.0
-
-# Authentication
 python-jose[cryptography]==3.3.0
 passlib[bcrypt]==1.7.4
 python-multipart==0.0.6

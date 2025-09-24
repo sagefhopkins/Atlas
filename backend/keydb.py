@@ -4,108 +4,39 @@ import json
 import logging
 import redis
 from redis.exceptions import ResponseError, RedisError
+from pydantic import BaseModel, Field
+from typing import Optional, List, Dict, Any, Union
 
 
-class DeviceRecord:
-    def __init__(self, ip, mac, metadata=None, connections=None, last_seen=None):
-        self.ip = ip
-        self.mac = mac or "00:00:00:00:00:00"
-        self.last_seen = last_seen if last_seen is not None else time.time()
-        self.metadata = metadata or {}
-        self.connections = connections or []
+class ConnectionRecord(BaseModel):
+    src_ip: str
+    dst_ip: str
+    src_port: Optional[int] = None
+    dst_port: Optional[int] = None
+    protocol: Optional[Union[str, int]] = None
+    timestamp: float = Field(default_factory=time.time)
+    packet_id: Optional[str] = None
 
-    def update_metadata(self, new_metadata):
+
+class DeviceRecord(BaseModel):
+    ip: str
+    mac: str = "00:00:00:00:00:00"
+    last_seen: float = Field(default_factory=time.time)
+    metadata: Dict[str, Any] = Field(default_factory=dict)
+    connections: List[ConnectionRecord] = Field(default_factory=list)
+
+    def update_metadata(self, new_metadata: Dict[str, Any]):
         if new_metadata:
             self.metadata.update(new_metadata)
         self.last_seen = time.time()
 
-    def to_dict(self):
-        return {
-            "ip": self.ip,
-            "mac": self.mac,
-            "last_seen": self.last_seen,
-            "metadata": self.metadata,
-            "connections": [conn.to_dict() if hasattr(conn, 'to_dict') else conn for conn in self.connections],
-        }
 
-    @staticmethod
-    def from_dict(data):
-        if not data:
-            return None
-        connections = [ConnectionRecord.from_dict(c) for c in data.get("connections", [])]
-        return DeviceRecord(
-            ip=data.get("ip"),
-            mac=data.get("mac"),
-            metadata=data.get("metadata"),
-            connections=connections,
-            last_seen=data.get("last_seen"),
-        )
-
-
-class ConnectionRecord:
-    def __init__(self, src_ip, dst_ip, src_port=None, dst_port=None, protocol=None, timestamp=None, packet_id=None):
-        self.src_ip = src_ip
-        self.dst_ip = dst_ip
-        self.src_port = src_port
-        self.dst_port = dst_port
-        self.protocol = protocol
-        self.timestamp = timestamp if timestamp is not None else time.time()
-        self.packet_id = packet_id
-
-    def to_dict(self):
-        return {
-            "src_ip": self.src_ip,
-            "dst_ip": self.dst_ip,
-            "src_port": self.src_port,
-            "dst_port": self.dst_port,
-            "protocol": self.protocol,
-            "timestamp": self.timestamp,
-            "packet_id": self.packet_id,
-        }
-
-    @staticmethod
-    def from_dict(data):
-        if not data:
-            return None
-        return ConnectionRecord(
-            src_ip=data.get("src_ip"),
-            dst_ip=data.get("dst_ip"),
-            src_port=data.get("src_port"),
-            dst_port=data.get("dst_port"),
-            protocol=data.get("protocol"),
-            timestamp=data.get("timestamp"),
-            packet_id=data.get("packet_id"),
-        )
-
-
-class PacketRecord:
-    def __init__(self, packet_id, raw_data, headers, analysis, timestamp=None):
-        self.packet_id = packet_id
-        self.raw_data = raw_data
-        self.headers = headers
-        self.analysis = analysis
-        self.timestamp = timestamp if timestamp is not None else time.time()
-
-    def to_dict(self):
-        return {
-            "packet_id": self.packet_id,
-            "raw_data": self.raw_data,
-            "headers": self.headers,
-            "analysis": self.analysis,
-            "timestamp": self.timestamp,
-        }
-
-    @staticmethod
-    def from_dict(data):
-        if not data:
-            return None
-        return PacketRecord(
-            packet_id=data.get("packet_id"),
-            raw_data=data.get("raw_data"),
-            headers=data.get("headers"),
-            analysis=data.get("analysis"),
-            timestamp=data.get("timestamp"),
-        )
+class PacketRecord(BaseModel):
+    packet_id: str
+    raw_data: Any
+    headers: Dict[str, Any]
+    analysis: Dict[str, Any]
+    timestamp: float = Field(default_factory=time.time)
 
 
 
@@ -189,12 +120,12 @@ class KeyDBClient:
             key = f"device:{ip}"
             existing = self.get_device(ip)
             if existing:
-                record = DeviceRecord.from_dict(existing)
+                record = DeviceRecord.model_validate(existing)
                 record.update_metadata(device.get("metadata", {}))
             else:
                 record = DeviceRecord(ip=ip, mac=mac, metadata=device.get("metadata", {}), connections=[])
 
-            self._safe_json_set(key, ".", record.to_dict())
+            self._safe_json_set(key, ".", record.model_dump())
             self.redis.expire(key, self.ttl)
         except Exception as e:
             logging.exception(f"store_device failed for {device}: {e}")
@@ -205,16 +136,16 @@ class KeyDBClient:
     def store_connection(self, src_ip, dst_ip, src_port=None, dst_port=None, protocol=None, packet_id=None):
         try:
             link_key = f"link:{src_ip}:{dst_ip}"
-            link_rec = ConnectionRecord(src_ip, dst_ip, src_port, dst_port, protocol, packet_id=packet_id).to_dict()
+            conn_record = ConnectionRecord(src_ip=src_ip, dst_ip=dst_ip, src_port=src_port, dst_port=dst_port, protocol=protocol, packet_id=packet_id)
+            link_rec = conn_record.model_dump()
             self._safe_json_set(link_key, ".", link_rec)
             self.redis.expire(link_key, self.ttl)
 
             device_key = f"device:{src_ip}"
             device_data = self.get_device(src_ip)
             if not device_data:
-                conn_obj = ConnectionRecord(src_ip, dst_ip, src_port, dst_port, protocol, packet_id=packet_id)
-                dev = DeviceRecord(ip=src_ip, mac="00:00:00:00:00:00", connections=[conn_obj])
-                self._safe_json_set(device_key, ".", dev.to_dict())
+                dev = DeviceRecord(ip=src_ip, mac="00:00:00:00:00:00", connections=[conn_record])
+                self._safe_json_set(device_key, ".", dev.model_dump())
                 self.redis.expire(device_key, self.ttl)
                 return
 
@@ -271,7 +202,7 @@ class KeyDBClient:
     def store_packet(self, packet_record: PacketRecord):
         try:
             key = f"packet:{packet_record.packet_id}"
-            self._safe_json_set(key, ".", packet_record.to_dict())
+            self._safe_json_set(key, ".", packet_record.model_dump())
             self.redis.expire(key, self.ttl * 2)
         except Exception as e:
             logging.exception(f"store_packet failed for {packet_record.packet_id}: {e}")
