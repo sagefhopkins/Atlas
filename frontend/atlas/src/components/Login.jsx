@@ -82,8 +82,7 @@ const Login = () => {
     <div className={styles.container}>
       <div className={styles.loginCard}>
         <div className={styles.header}>
-          <h1 className={styles.title}>Atlas Network Monitor</h1>
-          <p className={styles.subtitle}>Please sign in to continue</p>
+          <img className={styles.logo} src="Atlas_Color.png" />
         </div>
 
         <div className={styles.content}>

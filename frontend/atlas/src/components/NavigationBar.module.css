@@ -8,7 +8,12 @@
 }
 
 .navHeader {
-  margin-bottom: 20px;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+}
+.logo {
+  max-height: 20vh;
 }
 
 .appTitle {
@@ -772,4 +777,6 @@
   .deviceCard {
     padding: 12px;
   }
-}
+
+}    margin-top: 0;
+

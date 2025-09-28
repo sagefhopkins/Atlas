@@ -187,6 +187,20 @@ const PacketInspector = ({ selectedConnection, onClose }) => {
         }
     };
 
+    const getThreatIndicatorIcon = (indicator) => {
+        const icons = {
+            'port_scan': '🔎',
+            'spoofing': '🎭',
+            'reflection_attack': '🔄',
+            'suspicious_port': '🚪',
+            'bogon_ip': '🚫',
+            'icmp_recon': '📡',
+            'icmp_redirect': '↩️',
+            'dns_amplification': '📢'
+        };
+        return icons[indicator] || '⚠️';
+    };
+
 
     return (
         <div className={styles.packetInspector}>
@@ -225,42 +239,59 @@ const PacketInspector = ({ selectedConnection, onClose }) => {
                 <div className={styles.content}>
                     {viewMode === 'list' && (
                         <div className={styles.packetList}>
-                            {packets.map((packet, index) => {
-                                const analysis = packet.analysis || {};
-                                const security = analysis.security || {};
+                            <div className={styles.packetsTable}>
+                                <div className={styles.tableHeader}>
+                                    <div>Time</div>
+                                    <div>Source</div>
+                                    <div>Destination</div>
+                                    <div>Protocol</div>
+                                    <div>Length</div>
+                                    <div>Info</div>
+                                    <div>Risk</div>
+                                </div>
                                 
-                                return (
-                                    <div 
-                                        key={packet.packet_id || index}
-                                        className={styles.packetRow}
-                                        onClick={() => handlePacketClick(packet)}
-                                    >
-                                        <div className={styles.packetIcon}>
-                                            {getPacketTypeIcon(analysis.packet_type)}
-                                        </div>
-                                        <div className={styles.packetSummary}>
-                                            <div className={styles.packetType}>
-                                                {analysis.packet_type || 'Unknown'}
-                                            </div>
-                                            <div className={styles.packetFlow}>
-                                                {analysis.src_ip || 'N/A'}{analysis.src_port ? `:${analysis.src_port}` : ''} → {analysis.dst_ip || 'N/A'}{analysis.dst_port ? `:${analysis.dst_port}` : ''}
-                                            </div>
-                                            <div className={styles.packetMeta}>
-                                                <span className={styles.packetSize}>{analysis.size || 0}B</span>
-                                                <span className={styles.packetTime}>{formatTimestamp(packet.timestamp || analysis.timestamp)}</span>
-                                            </div>
-                                        </div>
-                                        <div className={styles.packetRisk}>
-                                            <span 
-                                                className={styles.riskBadge}
-                                                style={{ backgroundColor: getRiskLevelColor(security.risk_level) }}
+                                <div className={styles.tableBody}>
+                                    {packets.map((packet, index) => {
+                                        const analysis = packet.analysis || {};
+                                        const security = analysis.security || {};
+                                        
+                                        return (
+                                            <div 
+                                                key={packet.packet_id || index}
+                                                className={`${styles.packetRow} ${selectedPacket?.packet_id === packet.packet_id ? styles.selectedRow : ''}`}
+                                                onClick={() => handlePacketClick(packet)}
                                             >
-                                                {security.risk_level || 'low'}
-                                            </span>
-                                        </div>
-                                    </div>
-                                );
-                            })}
+                                                <div className={styles.timestamp}>
+                                                    {formatTimestamp(packet.timestamp || analysis.timestamp)}
+                                                </div>
+                                                <div className={styles.sourceInfo}>
+                                                    {analysis.src_ip || 'N/A'}
+                                                    {analysis.src_port && <span className={styles.port}>:{analysis.src_port}</span>}
+                                                </div>
+                                                <div className={styles.destInfo}>
+                                                    {analysis.dst_ip || 'N/A'}
+                                                    {analysis.dst_port && <span className={styles.port}>:{analysis.dst_port}</span>}
+                                                </div>
+                                                <div className={styles.protocol}>
+                                                    {analysis.protocol_name || 'Unknown'}
+                                                </div>
+                                                <div className={styles.size}>
+                                                    {analysis.size || 0}
+                                                </div>
+                                                <div className={styles.packetType}>
+                                                    <span className={styles.typeIcon}>
+                                                        {getPacketTypeIcon(analysis.packet_type)}
+                                                    </span>
+                                                    {analysis.packet_type || 'Unknown'}
+                                                </div>
+                                                <div className={styles.riskIndicator} style={{ backgroundColor: getRiskLevelColor(security.risk_level) }}>
+                                                    {security.risk_level || 'low'}
+                                                </div>
+                                            </div>
+                                        );
+                                    })}
+                                </div>
+                            </div>
                             
                             {packets.length === 0 && !isLoading && (
                                 <div className={styles.noPackets}>
@@ -328,6 +359,12 @@ const PacketInspector = ({ selectedConnection, onClose }) => {
                                                 </span>
                                             </div>
                                             <div className={styles.securityItem}>
+                                                <label>Risk Score:</label>
+                                                <span className={styles.riskScore}>
+                                                    {packetDetails.analysis.security.risk_score || 0}/100
+                                                </span>
+                                            </div>
+                                            <div className={styles.securityItem}>
                                                 <label>Encrypted:</label>
                                                 <span>{packetDetails.analysis.security.is_encrypted ? '✅ Yes' : '❌ No'}</span>
                                             </div>
@@ -336,6 +373,32 @@ const PacketInspector = ({ selectedConnection, onClose }) => {
                                                 <span>{packetDetails.analysis.security.is_suspicious ? '⚠️ Yes' : '✅ No'}</span>
                                             </div>
                                         </div>
+                                        
+                                        {packetDetails.analysis.security.threat_indicators && packetDetails.analysis.security.threat_indicators.length > 0 && (
+                                            <div className={styles.threatIndicators}>
+                                                <label className={styles.threatLabel}>Threat Indicators:</label>
+                                                <div className={styles.threatTags}>
+                                                    {packetDetails.analysis.security.threat_indicators.map((indicator, index) => (
+                                                        <span key={index} className={styles.threatTag}>
+                                                            {getThreatIndicatorIcon(indicator)} {indicator.replace('_', ' ')}
+                                                        </span>
+                                                    ))}
+                                                </div>
+                                            </div>
+                                        )}
+                                        
+                                        {packetDetails.analysis.security.warnings && packetDetails.analysis.security.warnings.length > 0 && (
+                                            <div className={styles.securityWarnings}>
+                                                <label className={styles.warningsLabel}>⚠️ Security Warnings:</label>
+                                                <ul className={styles.warningsList}>
+                                                    {packetDetails.analysis.security.warnings.map((warning, index) => (
+                                                        <li key={index} className={styles.warningItem}>
+                                                            {warning}
+                                                        </li>
+                                                    ))}
+                                                </ul>
+                                            </div>
+                                        )}
                                     </div>
                                 )}
 

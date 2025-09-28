@@ -320,6 +320,25 @@
     font-family: 'Monaco', 'Consolas', monospace;
 }
 
+.backButton {
+    background: #4b5563;
+    color: white;
+    border: none;
+    padding: 8px 16px;
+    border-radius: 6px;
+    cursor: pointer;
+    font-size: 0.9rem;
+    font-weight: 500;
+    transition: background-color 0.2s ease;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.backButton:hover {
+    background: #6b7280;
+}
+
 .exportButtons {
     display: flex;
     gap: 10px;
@@ -445,6 +464,15 @@
     padding: 15px;
     border-radius: 6px;
     border: 1px solid #334155;
+}
+
+.headerData {
+    margin: 0;
+    font-family: 'Monaco', 'Consolas', monospace;
+    font-size: 0.8rem;
+    color: #e2e8f0;
+    white-space: pre-wrap;
+    word-break: break-all;
 }
 
 .jsonDisplay {

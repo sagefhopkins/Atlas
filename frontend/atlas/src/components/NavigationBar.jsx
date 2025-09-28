@@ -141,7 +141,7 @@ const NavigationBar = ({ activeTab, onTabChange, devices, totalConnections, onDe
     return (
         <nav className={styles.navigationBar}>
             <div className={styles.navHeader}>
-                <h1 className={styles.appTitle}>Atlas Network Monitor</h1>
+                <img className={styles.logo} src="Atlas_Color.png"></img>
             </div>
             
             <div className={styles.tabContainer}>

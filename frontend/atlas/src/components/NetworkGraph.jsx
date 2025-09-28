@@ -574,6 +574,9 @@ const NetworkGraph = () => {
                                                     </span>
                                                 </td>
                                                 <td className={styles.cell}>
+                                                    <span className={styles.port}>{conn.src_port}</span>
+                                                </td>
+                                                <td className={styles.cell}>
                                                     <span className={styles.port}>{conn.dst_port}</span>
                                                 </td>
                                                 <td className={styles.cell}>

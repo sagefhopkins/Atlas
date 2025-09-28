@@ -248,4 +248,8 @@
     background: rgba(55, 65, 81, 0.5);
     color: #d1d5db;
   }
+
+  .logo{
+    max-width: 85%;
+  }
 }
